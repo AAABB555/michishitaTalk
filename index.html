@@ -4,7 +4,7 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <meta name="robots" content="noindex, nofollow">
-  <title>道下通信網 - 道下特設ポータル</title>
+  <title>シークレット通信網 - 道下特設ポータル</title>
   <!-- Firebase CDN -->
   <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-app-compat.js"></script>
   <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-database-compat.js"></script>
@@ -151,10 +151,11 @@
       border-radius: 10px;
       cursor: pointer;
     }
+    /* 逃走ボタン（赤枠に変更） */
     .btn-panic {
-      background: #ef4444 !important;
-      color: #ffffff !important;
-      border-color: #dc2626 !important;
+      background: #f1f5f9 !important;
+      color: #ef4444 !important;
+      border: 1.5px solid #ef4444 !important;
     }
 
     /* タブバー */
@@ -255,11 +256,23 @@
       flex-direction: column;
       gap: 4px;
       width: 100%;
+      position: relative;
     }
     .chat-row.mine .chat-bubble {
       background: linear-gradient(135deg, #0284c7 0%, #0369a1 100%);
       color: #ffffff;
       border-color: #0284c7;
+    }
+
+    /* 炎上消去アニメーション演出 */
+    .chat-bubble.burning {
+      animation: burnEffect 0.8s forwards;
+    }
+    @keyframes burnEffect {
+      0% { transform: scale(1); filter: brightness(1); background: #fff; }
+      30% { transform: scale(1.03) rotate(1deg); filter: brightness(1.5) sepia(1) hue-rotate(-50deg); background: #f97316; }
+      70% { transform: scale(0.95) rotate(-2deg); filter: brightness(0.8) grayscale(0.5); background: #dc2626; color: transparent; }
+      100% { transform: scale(0) translateY(30px); opacity: 0; }
     }
 
     .bubble-name {
@@ -496,6 +509,17 @@
       display: flex;
       gap: 8px;
     }
+
+    /* 管理者パネル専用スタイル */
+    .admin-badge {
+      background: #ef4444;
+      color: #fff;
+      font-size: 9px;
+      padding: 2px 6px;
+      border-radius: 6px;
+      font-weight: 900;
+      margin-left: 6px;
+    }
   </style>
 </head>
 <body class="mode-mobile" id="bodyRoot">
@@ -504,7 +528,7 @@
   <div id="nameModal" class="custom-modal">
     <div class="modal-card">
       <div class="modal-title">🔐 道下登録</div>
-      <div class="modal-desc">通信網で使用するあなたの名前（道下ネーム）を決めてください。</div>
+      <div class="modal-desc">通信網で使用するあなたの名前（道下ネーム）を決めてください。<br><span style="font-size:10px; color:#ef4444;">(55555 と打つと管理者モード)</span></div>
       <input type="text" id="initialNameInput" class="modal-input" placeholder="例: 道下ファン" maxlength="10">
       <button class="btn-clean" style="width: 100%; height: 44px; border-radius: 22px;" onclick="saveInitialName()">通信網に参加する</button>
     </div>
@@ -529,6 +553,7 @@
       <div class="logo-area">
         <img id="headerUserAvatar" class="user-avatar-head" src="" alt="Icon">
         <span id="headerUserTag">道下: 読み込み中...</span>
+        <span id="adminHeaderBadge" style="display:none;" class="admin-badge">🛡️ 管理者</span>
       </div>
       <div class="header-actions">
         <button class="header-btn btn-panic" onclick="triggerPanic()">🚨 逃走 (Esc)</button>
@@ -593,9 +618,15 @@
     <!-- ================= 3. 設定タブ ================= -->
     <div id="viewSettings" class="view-content">
       <div class="settings-pane">
+        <!-- 管理者専用パネル（管理者モード時のみ表示） -->
+        <div class="setting-card" id="adminPanelCard" style="display:none; border-color:#ef4444; background:#fff1f2;">
+          <div class="setting-title" style="color:#ef4444;">🛡️ 管理者セキュリティ司令室</div>
+          <div style="font-size:11.5px; color:#475569; font-weight:700;">全体の生徒アカウント管理およびBAN処置が可能です。</div>
+          <div id="adminUserListContainer" style="display:flex; flex-direction:column; gap:6px; max-height:180px; overflow-y:auto; margin-top:8px;"></div>
+        </div>
+
         <div class="setting-card">
           <div class="setting-title">👤 プロフィール・アイコン設定</div>
-          
           <div style="display:flex; align-items:center; gap:12px;">
             <img id="settingsAvatarPreview" style="width:50px; height:50px; border-radius:50%; object-fit:cover; border:2px solid #0284c7;">
             <div>
@@ -604,17 +635,8 @@
               <button class="btn-clean" style="font-size:11px; margin-top:4px;" onclick="document.getElementById('avatarFileInput').click()">📁 アルバムを開く</button>
             </div>
           </div>
-
           <div style="display:flex; gap:6px; margin-top:4px;">
             <button class="btn-clean" style="flex:1; background:#ef4444; font-size:11px;" onclick="resetToDefaultIcon()">初期アイコンに戻す</button>
-          </div>
-
-          <div style="border-top:1px solid #e2e8f0; padding-top:10px;">
-            <div style="font-size:11px; color:#64748b; font-weight:800; margin-bottom:6px;">初期アイコンプリセット（切り替え）</div>
-            <div class="preset-btn-group">
-              <button class="btn-clean" style="flex:1; background:#0284c7; font-size:10.5px;" onclick="setPresetIcon(1)">初期アイコン1</button>
-              <button class="btn-clean" style="flex:1; background:#10b981; font-size:10.5px;" onclick="setPresetIcon(2)">初期アイコン2</button>
-            </div>
           </div>
         </div>
 
@@ -637,6 +659,9 @@
 
     let myName = localStorage.getItem(STORAGE_NAME_KEY) || "";
     let myIcon = localStorage.getItem(STORAGE_ICON_KEY) || DEFAULT_ICON_1;
+    let isAdmin = false;
+    let originalAdminName = null; // 憑依時に元の名前を保持する用
+    let impersonatedName = null; // 現在憑依中の名前
 
     const firebaseConfig = {
       databaseURL: "https://michishita-typing-94d91-default-rtdb.firebaseio.com"
@@ -653,7 +678,6 @@
     let pendingImageData = null;
     let pendingImageMode = null;
 
-    // --- ESCキー逃走 ---
     window.addEventListener('keydown', (e) => {
       if (e.key === 'Escape') triggerPanic();
     });
@@ -662,7 +686,6 @@
       window.open("https://classroom.google.com", "_blank");
     }
 
-    // --- 音声 (Web Audio API) ---
     let audioCtx = null;
     function initAudio() { if (!audioCtx) audioCtx = new (window.AudioContext || window.webkitAudioContext)(); }
     function playBeep(freq, type = 'sine', duration = 0.08, vol = 0.1) {
@@ -705,13 +728,42 @@
       document.getElementById('soundToggleBtn').innerText = isSoundOn ? '🔊音ON' : '🔇ミュート';
       updateAvatarDisplays();
       cleanupInactiveUsers();
-      if (myName) {
-        document.getElementById('nameModal').style.display = 'none';
-        initApp();
-      }
+      checkBanStatusAndInit();
     };
 
-    // --- 7日間非アクティブアカウント自動削除機能 ---
+    function checkBanStatusAndInit() {
+      if (!myName) {
+        document.getElementById('nameModal').style.display = 'flex';
+        return;
+      }
+      // BANチェック
+      db.ref('secret_bans/' + myName).once('value', (snap) => {
+        const banType = snap.val();
+        if (banType === 'permanent') {
+          alert("このアカウントは【永久BAN】されています。二度とアクセスできません。");
+          localStorage.removeItem(STORAGE_NAME_KEY);
+          location.reload();
+          return;
+        } else if (banType === 'temp') {
+          alert("このアカウントは一時BANされています。新しい名前に変更して再入場してください。");
+          localStorage.removeItem(STORAGE_NAME_KEY);
+          location.reload();
+          return;
+        }
+
+        if (myName === '55555') {
+          isAdmin = true;
+          originalAdminName = '55555';
+          document.getElementById('adminHeaderBadge').style.display = 'inline-block';
+          document.getElementById('adminPanelCard').style.display = 'flex';
+          initAdminPanel();
+        }
+
+        document.getElementById('nameModal').style.display = 'none';
+        initApp();
+      });
+    }
+
     function cleanupInactiveUsers() {
       const SEVEN_DAYS_MS = 7 * 24 * 60 * 60 * 1000;
       const now = Date.now();
@@ -730,29 +782,36 @@
       document.getElementById('settingsAvatarPreview').src = myIcon;
     }
 
-    // --- 名前チェック＆登録機能 ---
     function saveInitialName() {
       const input = document.getElementById('initialNameInput').value.trim();
       if (!input) return alert("名前を入力してください！");
       const targetName = input.substring(0, 10);
       
-      db.ref('secret_users/' + targetName).once('value', (snap) => {
-        const uData = snap.val();
-        const SEVEN_DAYS_MS = 7 * 24 * 60 * 60 * 1000;
-        
-        // アクティブなユーザーが存在する場合は重複不可
-        if (uData && uData.lastActive && (Date.now() - uData.lastActive <= SEVEN_DAYS_MS)) {
-          alert(`「${targetName}」は現在他の人が使用しています。別の名前を入力してください。`);
+      // 永久BANチェック
+      db.ref('secret_bans/' + targetName).once('value', (banSnap) => {
+        if (banSnap.val() === 'permanent') {
+          alert("その名前は永久BANされているため使用できません。");
           return;
         }
 
-        if (confirm(`「${targetName}」は使用可能です！この名前に登録しますか？`)) {
-          playTapSound();
-          myName = targetName;
-          localStorage.setItem(STORAGE_NAME_KEY, myName);
-          document.getElementById('nameModal').style.display = 'none';
-          initApp();
-        }
+        db.ref('secret_users/' + targetName).once('value', (snap) => {
+          const uData = snap.val();
+          const SEVEN_DAYS_MS = 7 * 24 * 60 * 60 * 1000;
+          
+          if (targetName !== '55555' && uData && uData.lastActive && (Date.now() - uData.lastActive <= SEVEN_DAYS_MS)) {
+            alert(`「${targetName}」は現在他の人が使用しています。`);
+            return;
+          }
+
+          if (targetName === '55555' || confirm(`「${targetName}」は使用可能です！参加しますか？`)) {
+            playTapSound();
+            myName = targetName;
+            if (myName === '55555') isAdmin = true;
+            localStorage.setItem(STORAGE_NAME_KEY, myName);
+            document.getElementById('nameModal').style.display = 'none';
+            checkBanStatusAndInit();
+          }
+        });
       });
     }
 
@@ -771,16 +830,22 @@
     }
 
     function initApp() {
-      document.getElementById('headerUserTag').innerText = `道下: ${myName}`;
+      const displayName = impersonatedName ? `🛡️[憑依中: ${impersonatedName}]` : myName;
+      document.getElementById('headerUserTag').innerText = `道下: ${displayName}`;
       document.getElementById('settingNameInput').value = myName;
+      if (isAdmin) {
+        document.getElementById('adminHeaderBadge').style.display = 'inline-block';
+        document.getElementById('adminPanelCard').style.display = 'flex';
+      }
       registerUserPresence();
       initChannelSync();
       initUserListSync();
     }
 
     function registerUserPresence() {
-      const userRef = db.ref('secret_users/' + myName);
-      userRef.set({ name: myName, icon: myIcon, lastActive: firebase.database.ServerValue.TIMESTAMP });
+      const activeName = impersonatedName || myName;
+      const userRef = db.ref('secret_users/' + activeName);
+      userRef.set({ name: activeName, icon: myIcon, lastActive: firebase.database.ServerValue.TIMESTAMP });
       if (window.presenceInterval) clearInterval(window.presenceInterval);
       window.presenceInterval = setInterval(() => {
         userRef.update({ lastActive: firebase.database.ServerValue.TIMESTAMP, icon: myIcon });
@@ -804,6 +869,65 @@
       document.getElementById('view' + tabName.charAt(0).toUpperCase() + tabName.slice(1)).classList.add('active');
     }
 
+    // --- 管理者パネル：ユーザー一覧＆BAN・憑依管理 ---
+    function initAdminPanel() {
+      const container = document.getElementById('adminUserListContainer');
+      db.ref('secret_users').on('value', (snap) => {
+        const users = snap.val() || {};
+        container.innerHTML = '';
+        Object.values(users).forEach(u => {
+          if (u.name === '55555') return;
+          const div = document.createElement('div');
+          div.style.cssText = "display:flex; justify-content:space-between; align-items:center; background:#fff; padding:6px 10px; border-radius:8px; font-size:11px; font-weight:800;";
+          
+          div.innerHTML = `
+            <span>${u.name}</span>
+            <div style="display:flex; gap:4px;">
+              <button onclick="impersonateUser('${u.name}')" style="background:#0284c7; color:#fff; border:none; padding:2px 6px; border-radius:4px; cursor:pointer;">憑依</button>
+              <button onclick="banUser('${u.name}', 'temp')" style="background:#f97316; color:#fff; border:none; padding:2px 6px; border-radius:4px; cursor:pointer;">一時BAN</button>
+              <button onclick="banUser('${u.name}', 'permanent')" style="background:#ef4444; color:#fff; border:none; padding:2px 6px; border-radius:4px; cursor:pointer;">永久BAN</button>
+            </div>
+          `;
+          container.appendChild(div);
+        });
+      });
+    }
+
+    // --- 憑依機能 (アカウント切り替え) ---
+    function impersonateUser(targetName) {
+      if (!confirm(`「${targetName}」に憑依しますか？（あなたの操作はこのアカウントとして送信されます）`)) return;
+      impersonatedName = targetName;
+      initApp();
+      alert(`${targetName} に憑依しました！`);
+      switchTab('channel');
+    }
+
+    // --- BAN機能 ---
+    function banUser(targetName, type) {
+      const typeText = type === 'permanent' ? '永久BAN' : '一時BAN';
+      if (!confirm(`「${targetName}」を${typeText}にしますか？`)) return;
+      db.ref('secret_bans/' + targetName).set(type);
+      db.ref('secret_users/' + targetName).remove();
+      alert(`${targetName} を ${typeText} に処置しました。`);
+    }
+
+    // --- メッセージ炎上消去演出付き削除 ---
+    function adminBurnMessage(path, msgKey) {
+      if (!isAdmin) return;
+      if (!confirm("管理者権限でこのメッセージを炎上消去しますか？")) return;
+      
+      // 画面上のバブルを燃やす演出
+      const bubbleEl = document.getElementById(`msg-bubble-${msgKey}`);
+      if (bubbleEl) {
+        bubbleEl.classList.add('burning');
+        playBeep(200, 'sawtooth', 0.4, 0.3);
+      }
+
+      setTimeout(() => {
+        db.ref(`${path}/${msgKey}`).remove();
+      }, 700);
+    }
+
     function handleAvatarFileSelect(input) {
       const file = input.files[0];
       if (!file) return;
@@ -824,7 +948,7 @@
           localStorage.setItem(STORAGE_ICON_KEY, myIcon);
           updateAvatarDisplays();
           registerUserPresence();
-          alert("アルバムからアイコンを変更しました！");
+          alert("アイコンを変更しました！");
         }
         img.src = e.target.result;
       }
@@ -840,15 +964,6 @@
       alert("初期アイコンに戻しました！");
     }
 
-    function setPresetIcon(num) {
-      myIcon = num === 1 ? DEFAULT_ICON_1 : DEFAULT_ICON_2;
-      localStorage.setItem(STORAGE_ICON_KEY, myIcon);
-      updateAvatarDisplays();
-      registerUserPresence();
-      alert(`初期アイコンパターン${num}に設定しました！`);
-    }
-
-    // --- 名前変更（重複チェック＆確認ダイアログ追加） ---
     function updateNameFromSettings() {
       const newName = document.getElementById('settingNameInput').value.trim();
       if (!newName) return alert("名前を入力してください");
@@ -856,25 +971,31 @@
 
       if (targetName === myName) return alert("現在の名前と同じです。");
 
-      db.ref('secret_users/' + targetName).once('value', (snap) => {
-        const uData = snap.val();
-        const SEVEN_DAYS_MS = 7 * 24 * 60 * 60 * 1000;
-
-        if (uData && uData.lastActive && (Date.now() - uData.lastActive <= SEVEN_DAYS_MS)) {
-          alert(`「${targetName}」は現在他の人が使用しています。別の名前を入力してください。`);
+      db.ref('secret_bans/' + targetName).once('value', (banSnap) => {
+        if (banSnap.val() === 'permanent') {
+          alert("その名前は永久BANされているため使用できません。");
           return;
         }
 
-        if (confirm(`「${targetName}」は使用可能です！名前を変更しますか？`)) {
-          // 旧アカウントデータ削除
-          db.ref('secret_users/' + myName).remove();
-          
-          myName = targetName;
-          localStorage.setItem(STORAGE_NAME_KEY, myName);
-          document.getElementById('headerUserTag').innerText = `道下: ${myName}`;
-          registerUserPresence();
-          alert(`名前を「${myName}」に変更しました！`);
-        }
+        db.ref('secret_users/' + targetName).once('value', (snap) => {
+          const uData = snap.val();
+          const SEVEN_DAYS_MS = 7 * 24 * 60 * 60 * 1000;
+
+          if (targetName !== '55555' && uData && uData.lastActive && (Date.now() - uData.lastActive <= SEVEN_DAYS_MS)) {
+            alert(`「${targetName}」は現在他の人が使用しています。`);
+            return;
+          }
+
+          if (confirm(`「${targetName}」に変更しますか？`)) {
+            db.ref('secret_users/' + myName).remove();
+            myName = targetName;
+            impersonatedName = null; // 憑依解除
+            if (myName === '55555') isAdmin = true; else isAdmin = false;
+            localStorage.setItem(STORAGE_NAME_KEY, myName);
+            checkBanStatusAndInit();
+            alert(`名前を変更しました！`);
+          }
+        });
       });
     }
 
@@ -895,14 +1016,14 @@
       document.getElementById('dmReplyingBar').style.display = 'none';
     }
 
-    // --- リアクション時の画面スクロール位置固定修正 ---
     function toggleReaction(path, msgKey, emoji) {
       playTapSound();
+      const activeSender = impersonatedName || myName;
       const ref = db.ref(`${path}/${msgKey}/reactions/${emoji}`);
       ref.once('value', (snap) => {
         const users = snap.val() || {};
-        if (users[myName]) ref.child(myName).remove();
-        else ref.child(myName).set(true);
+        if (users[activeSender]) ref.child(activeSender).remove();
+        else ref.child(activeSender).set(true);
       });
     }
 
@@ -918,11 +1039,12 @@
         const data = snapshot.val() || {};
         const entries = Object.entries(data);
 
+        const activeSender = impersonatedName || myName;
         const isNewMessageAdded = (lastChannelMsgCount !== null && entries.length > lastChannelMsgCount);
 
         if (isNewMessageAdded) {
           const latest = entries[entries.length - 1][1];
-          if (latest.name !== myName) {
+          if (latest.name !== activeSender) {
             playReceiveSound();
             showBrowserNotification(`[全体] ${latest.name}さん`, latest.type === 'image' ? '画像' : latest.text);
           }
@@ -933,7 +1055,6 @@
           container.appendChild(createMessageElement(key, msg, 'secret_channel'));
         });
 
-        // リアクション等の更新時はスクロール位置を維持（新着メッセージ時のみ下へスクロール）
         if (isNewMessageAdded || isNearBottom) {
           container.scrollTop = container.scrollHeight;
         } else {
@@ -947,8 +1068,9 @@
       const text = input.value.trim();
       if (!text && !replyingTo) return;
       playSendSound();
+      const activeSender = impersonatedName || myName;
       db.ref('secret_channel').push({
-        name: myName,
+        name: activeSender,
         icon: myIcon,
         text: text || "",
         type: 'text',
@@ -960,7 +1082,8 @@
     }
 
     function createMessageElement(key, msg, path) {
-      const isMine = msg.name === myName;
+      const activeSender = impersonatedName || myName;
+      const isMine = msg.name === activeSender;
       const row = document.createElement('div');
       row.className = `chat-row ${isMine ? 'mine' : ''}`;
 
@@ -979,7 +1102,7 @@
 
       const iconUrl = msg.icon || DEFAULT_ICON_1;
       let html = `<img src="${iconUrl}" class="msg-avatar">`;
-      html += `<div class="chat-bubble">`;
+      html += `<div class="chat-bubble" id="msg-bubble-${key}">`;
       html += `<div class="bubble-name"><span>${msg.name}</span><span>${msg.time}</span></div>`;
 
       if (msg.replyTo) {
@@ -998,15 +1121,19 @@
       html += `<div class="bubble-footer">`;
       html += `<div class="msg-actions">`;
       html += `<button class="msg-action-btn" onclick="setReply('${msg.name}', '${msg.text || '画像'}')">↩️返信</button>`;
+      
       if (isMine) {
         html += `<button class="msg-action-btn" onclick="deleteMsg('${path}', '${key}')">🗑️取消</button>`;
+      } else if (isAdmin) {
+        // 管理者なら他人のメッセージも炎上消去可能
+        html += `<button class="msg-action-btn" style="color:#ef4444;" onclick="adminBurnMessage('${path}', '${key}')">🔥消去</button>`;
       }
       
       if (!isMine) {
         html += `<div class="reaction-bar">`;
         emojis.forEach(e => {
           const count = Object.keys(reactions[e] || {}).length;
-          const active = (reactions[e] || {})[myName] ? 'active' : '';
+          const active = (reactions[e] || {})[activeSender] ? 'active' : '';
           html += `<button class="reaction-btn ${active}" onclick="toggleReaction('${path}', '${key}', '${e}')">${e}${count > 0 ? count : ''}</button>`;
         });
         html += `</div>`;
@@ -1037,12 +1164,13 @@
           const allDms = dmSnap.val() || {};
           container.innerHTML = '';
           const now = Date.now();
+          const activeSender = impersonatedName || myName;
           let anyUnread = false;
 
           Object.values(users).forEach(u => {
-            if (u.name === myName) return;
+            if (u.name === activeSender) return;
             const isOnline = u.lastActive && (now - u.lastActive < 25000);
-            const roomId = getDmRoomId(myName, u.name);
+            const roomId = getDmRoomId(activeSender, u.name);
             const roomMsgs = allDms[roomId] || {};
             const msgKeys = Object.keys(roomMsgs);
             
@@ -1050,7 +1178,7 @@
             if (msgKeys.length > 0) {
               const lastMsg = roomMsgs[msgKeys[msgKeys.length - 1]];
               const lastReadTime = Number(localStorage.getItem('LAST_READ_' + roomId) || 0);
-              if (lastMsg.name !== myName && lastMsg.rawTime > lastReadTime) {
+              if (lastMsg.name !== activeSender && lastMsg.rawTime > lastReadTime) {
                 hasUnread = true; anyUnread = true;
               }
             }
@@ -1081,7 +1209,8 @@
       document.getElementById('activeDmTitle').innerText = `${targetName} とのDM`;
       document.getElementById('dmUserListLayout').style.display = 'none';
       document.getElementById('dmChatRoomLayout').style.display = 'flex';
-      const roomId = getDmRoomId(myName, targetName);
+      const activeSender = impersonatedName || myName;
+      const roomId = getDmRoomId(activeSender, targetName);
       localStorage.setItem('LAST_READ_' + roomId, Date.now());
       initDmSync();
     }
@@ -1095,7 +1224,8 @@
     let lastDmMsgCount = {};
     function initDmSync() {
       if (!currentActiveDmUser) return;
-      const roomId = getDmRoomId(myName, currentActiveDmUser);
+      const activeSender = impersonatedName || myName;
+      const roomId = getDmRoomId(activeSender, currentActiveDmUser);
       const container = document.getElementById('dmMessagesContainer');
 
       db.ref('secret_dms/' + roomId).limitToLast(50).on('value', (snapshot) => {
@@ -1111,7 +1241,7 @@
 
         if (isNewMessageAdded) {
           const latest = entries[entries.length - 1][1];
-          if (latest.name !== myName) {
+          if (latest.name !== activeSender) {
             playReceiveSound();
             showBrowserNotification(`[DM] ${latest.name}さん`, latest.type === 'image' ? '画像' : latest.text);
           }
@@ -1136,10 +1266,11 @@
       const text = input.value.trim();
       if (!text && !replyingTo) return;
       playSendSound();
-      const roomId = getDmRoomId(myName, currentActiveDmUser);
+      const activeSender = impersonatedName || myName;
+      const roomId = getDmRoomId(activeSender, currentActiveDmUser);
       const now = Date.now();
       db.ref('secret_dms/' + roomId).push({
-        name: myName,
+        name: activeSender,
         icon: myIcon,
         text: text || "",
         type: 'text',
@@ -1191,8 +1322,9 @@
       if (!pendingImageData) return;
       playSendSound();
       const now = Date.now();
+      const activeSender = impersonatedName || myName;
       const payload = {
-        name: myName,
+        name: activeSender,
         icon: myIcon,
         data: pendingImageData,
         type: 'image',
@@ -1203,7 +1335,7 @@
       if (pendingImageMode === 'channel') {
         db.ref('secret_channel').push(payload);
       } else if (pendingImageMode === 'dm' && currentActiveDmUser) {
-        const roomId = getDmRoomId(myName, currentActiveDmUser);
+        const roomId = getDmRoomId(activeSender, currentActiveDmUser);
         db.ref('secret_dms/' + roomId).push(payload);
         localStorage.setItem('LAST_READ_' + roomId, now);
       }
