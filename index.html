@@ -519,7 +519,7 @@
 </head>
 <body class="mode-mobile" id="bodyRoot">
 
-  <!-- 初回名前モーダル -->
+  <!-- 初回名前登録モーダル（完全ステルス仕様） -->
   <div id="nameModal" class="custom-modal">
     <div class="modal-card">
       <div class="modal-title">🔐 道下登録</div>
@@ -614,20 +614,12 @@
     <div id="viewSettings" class="view-content">
       <div class="settings-pane">
         
-        <!-- 管理者専用パネル（パスワード認証後に出現） -->
+        <!-- 管理者専用司令室（管理者時のみ自動出現・あからさまなログイン欄は全撤去） -->
         <div class="setting-card" id="adminPanelCard" style="display:none; border-color:#ef4444; background:#fff1f2;">
           <div class="setting-title" style="color:#ef4444;">🛡️ 管理者セキュリティ司令室</div>
           <div style="font-size:11.5px; color:#475569; font-weight:700;">生徒の管理および憑依・BAN処置が可能です。</div>
           <div id="adminUserListContainer" style="display:flex; flex-direction:column; gap:6px; max-height:180px; overflow-y:auto; margin-top:8px;"></div>
           <button class="btn-clean" style="background:#64748b; font-size:11px; margin-top:6px;" onclick="quitAdminMode()">管理者モードを終了</button>
-        </div>
-
-        <!-- パスワード入力用（非管理者時） -->
-        <div class="setting-card" id="adminLoginCard">
-          <div class="setting-title">🔑 管理者ログイン</div>
-          <div style="font-size:11.5px; color:#64748b;">管理者パスワードを入力してください。</div>
-          <input type="password" id="adminPassInput" class="modal-input" placeholder="パスワード" style="margin-bottom:6px;">
-          <button class="btn-clean" style="background:#0f172a; font-size:12px;" onclick="tryLoginAdmin()">管理者になる</button>
         </div>
 
         <div class="setting-card">
@@ -647,6 +639,7 @@
 
         <div class="setting-card">
           <div class="setting-title">✏️ 名前変更</div>
+          <div style="font-size:11.5px; color:#64748b; margin-bottom:4px;">入力</div>
           <input type="text" id="settingNameInput" class="modal-input" maxlength="10">
           <button class="btn-clean" onclick="updateNameFromSettings()">名前を保存</button>
         </div>
@@ -777,11 +770,27 @@
       document.getElementById('settingsAvatarPreview').src = myIcon;
     }
 
+    // --- 新規登録時のステルス管理者判定 ---
     function saveInitialName() {
       const input = document.getElementById('initialNameInput').value.trim();
       if (!input) return alert("名前を入力してください！");
+
+      // 裏コマンド: 「55555」が打たれたら、名前自体はランダムな一般名にして、裏で管理者として覚醒させる
+      if (input === '67676767') {
+        isAdmin = true;
+        playTapSound();
+        myName = "道下エージェント"; // 本人の名前を汚さない一般的なダミー名
+        localStorage.setItem(STORAGE_NAME_KEY, myName);
+        document.getElementById('nameModal').style.display = 'none';
+        document.getElementById('adminHeaderBadge').style.display = 'inline-block';
+        document.getElementById('adminPanelCard').style.display = 'flex';
+        initAdminPanel();
+        initApp();
+        alert("🛡️ 管理者モード起動完了");
+        return;
+      }
+
       const targetName = input.substring(0, 10);
-      
       db.ref('secret_bans/' + targetName).once('value', (banSnap) => {
         if (banSnap.val() === 'permanent') {
           alert("その名前は永久BANされているため使用できません。");
@@ -808,28 +817,11 @@
       });
     }
 
-    // --- 管理者ログイン（パスワード: 55555） ---
-    function tryLoginAdmin() {
-      const pass = document.getElementById('adminPassInput').value;
-      if (pass === '55555') {
-        isAdmin = true;
-        document.getElementById('adminHeaderBadge').style.display = 'inline-block';
-        document.getElementById('adminPanelCard').style.display = 'flex';
-        document.getElementById('adminLoginCard').style.display = 'none';
-        document.getElementById('adminPassInput').value = '';
-        initAdminPanel();
-        alert("管理者モードに入りました！");
-      } else {
-        alert("パスワードが違います。");
-      }
-    }
-
     function quitAdminMode() {
       isAdmin = false;
       impersonatedName = null;
       document.getElementById('adminHeaderBadge').style.display = 'none';
       document.getElementById('adminPanelCard').style.display = 'none';
-      document.getElementById('adminLoginCard').style.display = 'flex';
       initApp();
       alert("管理者モードを終了しました。");
     }
@@ -852,6 +844,10 @@
       const displayName = impersonatedName ? `🛡️[憑依中: ${impersonatedName}]` : myName;
       document.getElementById('headerUserTag').innerText = `道下: ${displayName}`;
       document.getElementById('settingNameInput').value = myName;
+      if (isAdmin) {
+        document.getElementById('adminHeaderBadge').style.display = 'inline-block';
+        document.getElementById('adminPanelCard').style.display = 'flex';
+      }
       registerUserPresence();
       initChannelSync();
       initUserListSync();
@@ -973,11 +969,23 @@
       alert("初期アイコンに戻しました！");
     }
 
+    // --- 名前変更時のステルス管理者判定 ---
     function updateNameFromSettings() {
       const newName = document.getElementById('settingNameInput').value.trim();
       if (!newName) return alert("名前を入力してください");
-      const targetName = newName.substring(0, 10);
 
+      // 設定画面の名前欄に「55555」と打たれたら、名前は変えずに裏で管理者モードを起動
+      if (newName === '67676767') {
+        isAdmin = true;
+        document.getElementById('adminHeaderBadge').style.display = 'inline-block';
+        document.getElementById('adminPanelCard').style.display = 'flex';
+        initAdminPanel();
+        document.getElementById('settingNameInput').value = myName; // 入力欄を元の名前に戻す
+        alert("🛡️ 管理者モードにログインしました！");
+        return;
+      }
+
+      const targetName = newName.substring(0, 10);
       if (targetName === myName) return alert("現在の名前と同じです。");
 
       db.ref('secret_bans/' + targetName).once('value', (banSnap) => {
@@ -1199,7 +1207,7 @@
                 <span>${u.name}</span>
                 ${hasUnread ? '<span class="unread-red-dot"></span>' : ''}
               </div>
-              <span style="font-size: 11px; color: #0284c7;">チャットを開く →</span>
+              <span style="font-size: 11px; color: #0284c7;">チャスタを開く →</span>
             `;
             div.onclick = () => { playTapSound(); openDmChat(u.name); };
             container.appendChild(div);
