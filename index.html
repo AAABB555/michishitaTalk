@@ -501,10 +501,6 @@
       font-size: 14px;
       color: #0284c7;
     }
-    .preset-btn-group {
-      display: flex;
-      gap: 8px;
-    }
 
     .admin-badge {
       background: #ef4444;
@@ -518,18 +514,18 @@
 </head>
 <body class="mode-mobile" id="bodyRoot">
 
-  <!-- BANロック画面 -->
+  <!-- BANロック画面（解除されると自動で消えてログイン可能になります） -->
   <div id="banScreen" class="custom-modal" style="display: none; z-index: 99999; background: #0f172a;">
     <div class="modal-card" style="border-color: #ef4444;">
-      <div class="modal-title" style="color: #ef4444; font-size: 22px;">🚫 アカウント停止</div>
+      <div class="modal-title" style="color: #ef4444; font-size: 22px;">🚫 アカウント停止中</div>
       <div class="modal-desc" style="color: #94a3b8; font-size: 13.5px; margin-top: 10px;">
-        このアカウントは管理者によって停止（BAN）されました。<br>この端末およびアカウントからのアクセスは禁止されています。
+        このアカウントは管理者によってBANされています。<br>管理者がBANリストからあなたを外すと、自動的に通信網に復帰できます。
       </div>
     </div>
   </div>
 
   <!-- 初回名前登録モーダル -->
-  <div id="nameModal" class="custom-modal">
+  <div id="nameModal" class="custom-modal" style="display: none;">
     <div class="modal-card">
       <div class="modal-title">🔐 道下登録</div>
       <div class="modal-desc">通信網で使用するあなたの名前を決めてください。</div>
@@ -623,12 +619,18 @@
     <div id="viewSettings" class="view-content">
       <div class="settings-pane">
         
-        <!-- 管理者専用司令室 -->
+        <!-- 管理者専用司令室（BANリスト管理・解除対応） -->
         <div class="setting-card" id="adminPanelCard" style="display:none; border-color:#ef4444; background:#fff1f2;">
-          <div class="setting-title" style="color:#ef4444;">🛡️ 管理者セキュリティ司令室</div>
-          <div style="font-size:11.5px; color:#475569; font-weight:700;">生徒の管理および憑依・削除・BAN処置が可能です。</div>
-          <div id="adminUserListContainer" style="display:flex; flex-direction:column; gap:6px; max-height:180px; overflow-y:auto; margin-top:8px;"></div>
-          <button class="btn-clean" style="background:#64748b; font-size:11px; margin-top:6px;" onclick="quitAdminMode()">管理者モードを終了</button>
+          <div class="setting-title" style="color:#ef4444;">🛡️ 管理者セキュリティ司令室 (BANリスト管理)</div>
+          <div style="font-size:11.5px; color:#475569; font-weight:700;">現在参加中のユーザー、およびBANリスト（アカウント停止中）の管理が行えます。</div>
+          
+          <div style="font-size:12px; font-weight:900; color:#ef4444; margin-top:8px;">🚫 BANリスト一覧（「解除」で復活可能）</div>
+          <div id="adminBanListContainer" style="display:flex; flex-direction:column; gap:6px; max-height:140px; overflow-y:auto;"></div>
+
+          <div style="font-size:12px; font-weight:900; color:#0284c7; margin-top:8px;">👥 オンライン・参加中ユーザー</div>
+          <div id="adminUserListContainer" style="display:flex; flex-direction:column; gap:6px; max-height:140px; overflow-y:auto;"></div>
+
+          <button class="btn-clean" style="background:#64748b; font-size:11px; margin-top:8px;" onclick="quitAdminMode()">管理者モードを終了</button>
         </div>
 
         <div class="setting-card">
@@ -657,7 +659,7 @@
   </div>
 
   <script>
-    // ▼▼▼ 【初期アイコンを変更したい場合はここを変更してください】 ▼▼▼
+    // ▼▼▼ 【初期アイコン画像を変更したい場合はここを変更してください】 ▼▼▼
     const DEFAULT_ICON_1 = "https://api.dicebear.com/7.x/bottts/svg?seed=Michishita1";
 
     const STORAGE_NAME_KEY = 'SECRET_NETWORK_AGENT_NAME_V1';
@@ -707,20 +709,28 @@
       checkBanStatusAndInit();
     };
 
+    // --- BAN状態のリアルタイム監視付き初期化 ---
     function checkBanStatusAndInit() {
       if (!myName || myName === "undefined" || myName === "null") {
         localStorage.removeItem(STORAGE_NAME_KEY);
         myName = "";
+        document.getElementById('banScreen').style.display = 'none';
         document.getElementById('nameModal').style.display = 'flex';
         return;
       }
-      db.ref('secret_bans/' + myName).once('value', (snap) => {
-        if (snap.val() === 'permanent') {
+
+      // BANリストを常時監視（リストから外された瞬間にBAN画面が消えて自動復帰する）
+      db.ref('secret_bans/' + myName).on('value', (snap) => {
+        if (snap.val() === true) {
+          // BAN中の場合
           document.getElementById('banScreen').style.display = 'flex';
-          return;
+          document.getElementById('nameModal').style.display = 'none';
+        } else {
+          // BANされていない（または解除された）場合
+          document.getElementById('banScreen').style.display = 'none';
+          document.getElementById('nameModal').style.display = 'none';
+          initApp();
         }
-        document.getElementById('nameModal').style.display = 'none';
-        initApp();
       });
     }
 
@@ -748,8 +758,8 @@
 
       const targetName = input.substring(0, 10);
       db.ref('secret_bans/' + targetName).once('value', (banSnap) => {
-        if (banSnap.val() === 'permanent') {
-          alert("その名前はアカウント停止されているため使用できません。");
+        if (banSnap.val() === true) {
+          alert("その名前はBANされているため参加できません。");
           return;
         }
 
@@ -848,11 +858,15 @@
       document.getElementById('view' + tabName.charAt(0).toUpperCase() + tabName.slice(1)).classList.add('active');
     }
 
+    // --- 管理者パネル（BANリスト表示・追加・解除） ---
     function initAdminPanel() {
-      const container = document.getElementById('adminUserListContainer');
+      const userContainer = document.getElementById('adminUserListContainer');
+      const banContainer = document.getElementById('adminBanListContainer');
+
+      // オンラインユーザー一覧同期
       db.ref('secret_users').on('value', (snap) => {
         const users = snap.val() || {};
-        container.innerHTML = '';
+        userContainer.innerHTML = '';
         Object.values(users).forEach(u => {
           if (!u.name || u.name === "undefined") return;
           const div = document.createElement('div');
@@ -866,7 +880,29 @@
               <button onclick="banUser('${u.name}')" style="background:#ef4444; color:#fff; border:none; padding:2px 6px; border-radius:4px; cursor:pointer;">BAN</button>
             </div>
           `;
-          container.appendChild(div);
+          userContainer.appendChild(div);
+        });
+      });
+
+      // BANリスト一覧同期（ここから外せば復活できる）
+      db.ref('secret_bans').on('value', (snap) => {
+        const bans = snap.val() || {};
+        banContainer.innerHTML = '';
+        const bannedNames = Object.keys(bans).filter(name => bans[name] === true);
+
+        if (bannedNames.length === 0) {
+          banContainer.innerHTML = '<div style="font-size:11px; color:#64748b; font-weight:700; padding:4px;">現在BANされているユーザーはいません</div>';
+          return;
+        }
+
+        bannedNames.forEach(name => {
+          const div = document.createElement('div');
+          div.style.cssText = "display:flex; justify-content:space-between; align-items:center; background:#fff; padding:6px 10px; border-radius:8px; font-size:11px; font-weight:800;";
+          div.innerHTML = `
+            <span style="color:#ef4444;">🚫 ${name}</span>
+            <button onclick="unbanUser('${name}')" style="background:#10b981; color:#fff; border:none; padding:2px 8px; border-radius:4px; cursor:pointer; font-weight:900;">BAN解除（復帰させる）</button>
+          `;
+          banContainer.appendChild(div);
         });
       });
     }
@@ -892,10 +928,17 @@
     }
 
     function banUser(targetName) {
-      if (!confirm(`「${targetName}」を永久BAN（操作停止）にしますか？`)) return;
-      db.ref('secret_bans/' + targetName).set('permanent');
+      if (!confirm(`「${targetName}」をBANリストに追加しますか？`)) return;
+      db.ref('secret_bans/' + targetName).set(true);
       db.ref('secret_users/' + targetName).remove();
       alert(`「${targetName}」をBANしました。`);
+    }
+
+    // --- BANリストから外す（これによって相手が自動で復帰できる） ---
+    function unbanUser(targetName) {
+      if (!confirm(`「${targetName}」のBANを解除して通信網に復帰させますか？`)) return;
+      db.ref('secret_bans/' + targetName).remove();
+      alert(`「${targetName}」のBANを解除しました！`);
     }
 
     function adminBurnMessage(path, msgKey) {
@@ -967,8 +1010,8 @@
       if (targetName === myName) return alert("現在の名前と同じです。");
 
       db.ref('secret_bans/' + targetName).once('value', (banSnap) => {
-        if (banSnap.val() === 'permanent') {
-          alert("その名前はアカウント停止されているため使用できません。");
+        if (banSnap.val() === true) {
+          alert("その名前はBANされているため使用できません。");
           return;
         }
 
