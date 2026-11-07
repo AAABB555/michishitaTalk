@@ -4,7 +4,7 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <meta name="robots" content="noindex, nofollow">
-  <title>シークレット通信網 - 道下特設ポータル</title>
+  <title>道下通信網 - 道下特設ポータル</title>
   <!-- Firebase CDN -->
   <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-app-compat.js"></script>
   <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-database-compat.js"></script>
@@ -527,9 +527,9 @@
   <!-- 初回名前登録モーダル -->
   <div id="nameModal" class="custom-modal" style="display: none;">
     <div class="modal-card">
-      <div class="modal-title">🔐 道下登録</div>
-      <div class="modal-desc">通信網で使用するあなたの名前を決めてください。</div>
-      <input type="text" id="initialNameInput" class="modal-input" placeholder="例: 道下ファン" maxlength="10">
+      <div class="modal-title">🔐 エージェント道下に登録</div>
+      <div class="modal-desc">道下通信網で使用する名前を決めてください。</div>
+      <input type="text" id="initialNameInput" class="modal-input" placeholder="例: コードネーム道下" maxlength="10">
       <button class="btn-clean" style="width: 100%; height: 44px; border-radius: 22px;" onclick="saveInitialName()">通信網に参加する</button>
     </div>
   </div>
@@ -552,7 +552,7 @@
     <header class="app-header">
       <div class="logo-area">
         <img id="headerUserAvatar" class="user-avatar-head" src="" alt="Icon">
-        <span id="headerUserTag">道下: 読み込み中...</span>
+        <span id="headerUserTag">道下ID: 読み込み中...</span>
         <span id="adminHeaderBadge" style="display:none;" class="admin-badge">🛡️ 管理者</span>
         <button id="unimpersonateBtn" style="display:none; background:#ef4444; color:#fff; border:none; padding:2px 6px; border-radius:6px; font-size:9.5px; font-weight:800; cursor:pointer;" onclick="stopImpersonation()">👻 憑依解除</button>
       </div>
@@ -570,7 +570,7 @@
         ✉️ 個人
         <span class="tab-unread-dot" id="tabUnreadDot"></span>
       </div>
-      <div class="tab-item disabled" onclick="alert('通話機能は現在使用不可です')">📞 通話(使用不可)</div>
+      <div class="tab-item disabled" onclick="alert('通話機能は現在使用不可です')">📞 通話</div>
       <div class="tab-item" onclick="switchTab('settings')">⚙️ 設定</div>
     </div>
 
@@ -592,7 +592,7 @@
     <!-- ================= 2. 個人チャット (DM) ================= -->
     <div id="viewDm" class="view-content">
       <div class="dm-layout" id="dmUserListLayout">
-        <div style="padding: 12px 16px 6px; font-weight: 900; font-size: 13px; color: #64748b; flex-shrink: 0;">道下ファン一覧</div>
+        <div style="padding: 12px 16px 6px; font-weight: 900; font-size: 13px; color: #64748b; flex-shrink: 0;">エージェント道下一覧</div>
         <div class="user-list-pane" id="onlineUserListContainer"></div>
       </div>
       <div class="dm-layout" id="dmChatRoomLayout" style="display: none;">
@@ -1171,7 +1171,7 @@
       }
       html += `</div>`;
 
-      html += `<div class="read-counter">${isMine ? '既読' : ''}</div>`;
+      html += `<div class="read-counter">${isMine ? '送信済み' : ''}</div>`;
       html += `</div></div>`;
 
       row.innerHTML = html;
