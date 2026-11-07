@@ -151,7 +151,6 @@
       border-radius: 10px;
       cursor: pointer;
     }
-    /* 逃走ボタン（赤枠に変更） */
     .btn-panic {
       background: #f1f5f9 !important;
       color: #ef4444 !important;
@@ -201,7 +200,6 @@
     }
     .tab-unread-dot.show { display: inline-block; }
 
-    /* ビュー切り替えコンテナ */
     .view-content {
       flex: 1;
       display: none;
@@ -212,7 +210,6 @@
     }
     .view-content.active { display: flex; }
 
-    /* メッセージエリア */
     .messages-area {
       flex: 1;
       padding: 16px;
@@ -264,7 +261,6 @@
       border-color: #0284c7;
     }
 
-    /* 炎上消去アニメーション演出 */
     .chat-bubble.burning {
       animation: burnEffect 0.8s forwards;
     }
@@ -510,7 +506,6 @@
       gap: 8px;
     }
 
-    /* 管理者パネル専用スタイル */
     .admin-badge {
       background: #ef4444;
       color: #fff;
@@ -528,7 +523,7 @@
   <div id="nameModal" class="custom-modal">
     <div class="modal-card">
       <div class="modal-title">🔐 道下登録</div>
-      <div class="modal-desc">通信網で使用するあなたの名前（道下ネーム）を決めてください。<br><span style="font-size:10px; color:#ef4444;">(55555 と打つと管理者モード)</span></div>
+      <div class="modal-desc">通信網で使用するあなたの名前を決めてください。</div>
       <input type="text" id="initialNameInput" class="modal-input" placeholder="例: 道下ファン" maxlength="10">
       <button class="btn-clean" style="width: 100%; height: 44px; border-radius: 22px;" onclick="saveInitialName()">通信網に参加する</button>
     </div>
@@ -618,11 +613,21 @@
     <!-- ================= 3. 設定タブ ================= -->
     <div id="viewSettings" class="view-content">
       <div class="settings-pane">
-        <!-- 管理者専用パネル（管理者モード時のみ表示） -->
+        
+        <!-- 管理者専用パネル（パスワード認証後に出現） -->
         <div class="setting-card" id="adminPanelCard" style="display:none; border-color:#ef4444; background:#fff1f2;">
           <div class="setting-title" style="color:#ef4444;">🛡️ 管理者セキュリティ司令室</div>
-          <div style="font-size:11.5px; color:#475569; font-weight:700;">全体の生徒アカウント管理およびBAN処置が可能です。</div>
+          <div style="font-size:11.5px; color:#475569; font-weight:700;">生徒の管理および憑依・BAN処置が可能です。</div>
           <div id="adminUserListContainer" style="display:flex; flex-direction:column; gap:6px; max-height:180px; overflow-y:auto; margin-top:8px;"></div>
+          <button class="btn-clean" style="background:#64748b; font-size:11px; margin-top:6px;" onclick="quitAdminMode()">管理者モードを終了</button>
+        </div>
+
+        <!-- パスワード入力用（非管理者時） -->
+        <div class="setting-card" id="adminLoginCard">
+          <div class="setting-title">🔑 管理者ログイン</div>
+          <div style="font-size:11.5px; color:#64748b;">管理者パスワードを入力してください。</div>
+          <input type="password" id="adminPassInput" class="modal-input" placeholder="パスワード" style="margin-bottom:6px;">
+          <button class="btn-clean" style="background:#0f172a; font-size:12px;" onclick="tryLoginAdmin()">管理者になる</button>
         </div>
 
         <div class="setting-card">
@@ -660,8 +665,7 @@
     let myName = localStorage.getItem(STORAGE_NAME_KEY) || "";
     let myIcon = localStorage.getItem(STORAGE_ICON_KEY) || DEFAULT_ICON_1;
     let isAdmin = false;
-    let originalAdminName = null; // 憑依時に元の名前を保持する用
-    let impersonatedName = null; // 現在憑依中の名前
+    let impersonatedName = null; // 憑依中の名前
 
     const firebaseConfig = {
       databaseURL: "https://michishita-typing-94d91-default-rtdb.firebaseio.com"
@@ -736,27 +740,18 @@
         document.getElementById('nameModal').style.display = 'flex';
         return;
       }
-      // BANチェック
       db.ref('secret_bans/' + myName).once('value', (snap) => {
         const banType = snap.val();
         if (banType === 'permanent') {
-          alert("このアカウントは【永久BAN】されています。二度とアクセスできません。");
+          alert("このアカウントは【永久BAN】されています。");
           localStorage.removeItem(STORAGE_NAME_KEY);
           location.reload();
           return;
         } else if (banType === 'temp') {
-          alert("このアカウントは一時BANされています。新しい名前に変更して再入場してください。");
+          alert("このアカウントは一時BANされています。別の名前に変更してください。");
           localStorage.removeItem(STORAGE_NAME_KEY);
           location.reload();
           return;
-        }
-
-        if (myName === '55555') {
-          isAdmin = true;
-          originalAdminName = '55555';
-          document.getElementById('adminHeaderBadge').style.display = 'inline-block';
-          document.getElementById('adminPanelCard').style.display = 'flex';
-          initAdminPanel();
         }
 
         document.getElementById('nameModal').style.display = 'none';
@@ -787,7 +782,6 @@
       if (!input) return alert("名前を入力してください！");
       const targetName = input.substring(0, 10);
       
-      // 永久BANチェック
       db.ref('secret_bans/' + targetName).once('value', (banSnap) => {
         if (banSnap.val() === 'permanent') {
           alert("その名前は永久BANされているため使用できません。");
@@ -798,21 +792,46 @@
           const uData = snap.val();
           const SEVEN_DAYS_MS = 7 * 24 * 60 * 60 * 1000;
           
-          if (targetName !== '55555' && uData && uData.lastActive && (Date.now() - uData.lastActive <= SEVEN_DAYS_MS)) {
+          if (uData && uData.lastActive && (Date.now() - uData.lastActive <= SEVEN_DAYS_MS)) {
             alert(`「${targetName}」は現在他の人が使用しています。`);
             return;
           }
 
-          if (targetName === '55555' || confirm(`「${targetName}」は使用可能です！参加しますか？`)) {
+          if (confirm(`「${targetName}」は使用可能です！参加しますか？`)) {
             playTapSound();
             myName = targetName;
-            if (myName === '55555') isAdmin = true;
             localStorage.setItem(STORAGE_NAME_KEY, myName);
             document.getElementById('nameModal').style.display = 'none';
             checkBanStatusAndInit();
           }
         });
       });
+    }
+
+    // --- 管理者ログイン（パスワード: 55555） ---
+    function tryLoginAdmin() {
+      const pass = document.getElementById('adminPassInput').value;
+      if (pass === '55555') {
+        isAdmin = true;
+        document.getElementById('adminHeaderBadge').style.display = 'inline-block';
+        document.getElementById('adminPanelCard').style.display = 'flex';
+        document.getElementById('adminLoginCard').style.display = 'none';
+        document.getElementById('adminPassInput').value = '';
+        initAdminPanel();
+        alert("管理者モードに入りました！");
+      } else {
+        alert("パスワードが違います。");
+      }
+    }
+
+    function quitAdminMode() {
+      isAdmin = false;
+      impersonatedName = null;
+      document.getElementById('adminHeaderBadge').style.display = 'none';
+      document.getElementById('adminPanelCard').style.display = 'none';
+      document.getElementById('adminLoginCard').style.display = 'flex';
+      initApp();
+      alert("管理者モードを終了しました。");
     }
 
     function toggleScreenMode() {
@@ -833,10 +852,6 @@
       const displayName = impersonatedName ? `🛡️[憑依中: ${impersonatedName}]` : myName;
       document.getElementById('headerUserTag').innerText = `道下: ${displayName}`;
       document.getElementById('settingNameInput').value = myName;
-      if (isAdmin) {
-        document.getElementById('adminHeaderBadge').style.display = 'inline-block';
-        document.getElementById('adminPanelCard').style.display = 'flex';
-      }
       registerUserPresence();
       initChannelSync();
       initUserListSync();
@@ -869,14 +884,12 @@
       document.getElementById('view' + tabName.charAt(0).toUpperCase() + tabName.slice(1)).classList.add('active');
     }
 
-    // --- 管理者パネル：ユーザー一覧＆BAN・憑依管理 ---
     function initAdminPanel() {
       const container = document.getElementById('adminUserListContainer');
       db.ref('secret_users').on('value', (snap) => {
         const users = snap.val() || {};
         container.innerHTML = '';
         Object.values(users).forEach(u => {
-          if (u.name === '55555') return;
           const div = document.createElement('div');
           div.style.cssText = "display:flex; justify-content:space-between; align-items:center; background:#fff; padding:6px 10px; border-radius:8px; font-size:11px; font-weight:800;";
           
@@ -893,16 +906,14 @@
       });
     }
 
-    // --- 憑依機能 (アカウント切り替え) ---
     function impersonateUser(targetName) {
-      if (!confirm(`「${targetName}」に憑依しますか？（あなたの操作はこのアカウントとして送信されます）`)) return;
+      if (!confirm(`「${targetName}」に憑依しますか？`)) return;
       impersonatedName = targetName;
       initApp();
       alert(`${targetName} に憑依しました！`);
       switchTab('channel');
     }
 
-    // --- BAN機能 ---
     function banUser(targetName, type) {
       const typeText = type === 'permanent' ? '永久BAN' : '一時BAN';
       if (!confirm(`「${targetName}」を${typeText}にしますか？`)) return;
@@ -911,12 +922,10 @@
       alert(`${targetName} を ${typeText} に処置しました。`);
     }
 
-    // --- メッセージ炎上消去演出付き削除 ---
     function adminBurnMessage(path, msgKey) {
       if (!isAdmin) return;
       if (!confirm("管理者権限でこのメッセージを炎上消去しますか？")) return;
       
-      // 画面上のバブルを燃やす演出
       const bubbleEl = document.getElementById(`msg-bubble-${msgKey}`);
       if (bubbleEl) {
         bubbleEl.classList.add('burning');
@@ -981,7 +990,7 @@
           const uData = snap.val();
           const SEVEN_DAYS_MS = 7 * 24 * 60 * 60 * 1000;
 
-          if (targetName !== '55555' && uData && uData.lastActive && (Date.now() - uData.lastActive <= SEVEN_DAYS_MS)) {
+          if (uData && uData.lastActive && (Date.now() - uData.lastActive <= SEVEN_DAYS_MS)) {
             alert(`「${targetName}」は現在他の人が使用しています。`);
             return;
           }
@@ -989,8 +998,7 @@
           if (confirm(`「${targetName}」に変更しますか？`)) {
             db.ref('secret_users/' + myName).remove();
             myName = targetName;
-            impersonatedName = null; // 憑依解除
-            if (myName === '55555') isAdmin = true; else isAdmin = false;
+            impersonatedName = null; 
             localStorage.setItem(STORAGE_NAME_KEY, myName);
             checkBanStatusAndInit();
             alert(`名前を変更しました！`);
@@ -1125,7 +1133,6 @@
       if (isMine) {
         html += `<button class="msg-action-btn" onclick="deleteMsg('${path}', '${key}')">🗑️取消</button>`;
       } else if (isAdmin) {
-        // 管理者なら他人のメッセージも炎上消去可能
         html += `<button class="msg-action-btn" style="color:#ef4444;" onclick="adminBurnMessage('${path}', '${key}')">🔥消去</button>`;
       }
       
