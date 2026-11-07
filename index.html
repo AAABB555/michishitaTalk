@@ -4,7 +4,7 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <meta name="robots" content="noindex, nofollow">
-  <title>道下通信 - 道下特設ポータル</title>
+  <title>道下通信網 - 道下特設ポータル</title>
   <!-- Firebase CDN -->
   <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-app-compat.js"></script>
   <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-database-compat.js"></script>
@@ -131,25 +131,30 @@
     }
     .logo-area {
       font-weight: 900;
-      font-size: 14px;
+      font-size: 13px;
       color: #0284c7;
     }
     .header-actions {
       display: flex;
-      gap: 5px;
+      gap: 4px;
       align-items: center;
     }
     .header-btn {
       background: #f1f5f9;
       border: 1.5px solid #cbd5e1;
       color: #334155;
-      font-size: 10.5px;
+      font-size: 10px;
       font-weight: 800;
-      padding: 5px 8px;
-      border-radius: 12px;
+      padding: 5px 6px;
+      border-radius: 10px;
       cursor: pointer;
     }
     .header-btn:hover { background: #e2e8f0; }
+    .btn-panic {
+      background: #ef4444 !important;
+      color: #ffffff !important;
+      border-color: #dc2626 !important;
+    }
 
     /* タブバー */
     .tab-bar {
@@ -222,7 +227,7 @@
       border: 1.5px solid #e2e8f0;
       padding: 10px 14px;
       border-radius: 16px;
-      max-width: 80%;
+      max-width: 85%;
       word-break: break-all;
       box-shadow: 0 2px 6px rgba(0,0,0,0.03);
       position: relative;
@@ -241,6 +246,22 @@
     }
     .chat-bubble.mine .bubble-name { color: #bae6fd; text-align: right; }
     
+    /* リプライ引用表示 */
+    .reply-quote {
+      background: rgba(0, 0, 0, 0.05);
+      border-left: 3px solid #0284c7;
+      padding: 4px 8px;
+      border-radius: 4px;
+      font-size: 11px;
+      margin-bottom: 6px;
+      color: #475569;
+    }
+    .chat-bubble.mine .reply-quote {
+      background: rgba(255, 255, 255, 0.15);
+      border-left-color: #e0f2fe;
+      color: #f1f5f9;
+    }
+
     .chat-img {
       max-width: 100%;
       max-height: 200px;
@@ -249,24 +270,84 @@
       cursor: pointer;
     }
 
-    /* メッセージ取り消しボタン */
-    .btn-delete-msg {
-      background: none;
-      border: none;
-      color: #cbd5e1;
+    /* メッセージ下部のアクション (削除・返信) */
+    .msg-actions {
+      display: flex;
+      gap: 8px;
+      margin-top: 4px;
       font-size: 10px;
       font-weight: 800;
-      cursor: pointer;
-      margin-top: 4px;
-      display: block;
-      text-align: right;
     }
-    .chat-bubble.mine .btn-delete-msg { color: #e0f2fe; }
-    .btn-delete-msg:hover { text-decoration: underline; }
+    .msg-action-btn {
+      background: none;
+      border: none;
+      color: #94a3b8;
+      cursor: pointer;
+    }
+    .chat-bubble.mine .msg-action-btn { color: #e0f2fe; }
+    .msg-action-btn:hover { text-decoration: underline; }
+
+    /* リアクションエリア */
+    .reactions-container {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 4px;
+      margin-top: 6px;
+    }
+    .reaction-pill {
+      background: #f1f5f9;
+      border: 1px solid #cbd5e1;
+      border-radius: 12px;
+      padding: 2px 8px;
+      font-size: 11px;
+      font-weight: 800;
+      cursor: pointer;
+      display: flex;
+      gap: 4px;
+      align-items: center;
+      color: #334155;
+    }
+    .reaction-pill.active {
+      background: #e0f2fe;
+      border-color: #0284c7;
+      color: #0284c7;
+    }
+    .chat-bubble.mine .reaction-pill {
+      background: rgba(255,255,255,0.2);
+      border-color: rgba(255,255,255,0.4);
+      color: #fff;
+    }
+    .chat-bubble.mine .reaction-pill.active {
+      background: rgba(255,255,255,0.4);
+    }
+
+    /* 既読カウンター */
+    .read-counter {
+      font-size: 9.5px;
+      color: #94a3b8;
+      text-align: right;
+      margin-top: 2px;
+      font-weight: 700;
+    }
+    .chat-bubble.mine .read-counter { color: #bae6fd; }
+
+    /* リプライ編集中バー */
+    #replyingBar {
+      display: none;
+      background: #f1f5f9;
+      padding: 6px 16px;
+      font-size: 11.5px;
+      font-weight: 800;
+      color: #475569;
+      border-top: 1px solid #e2e8f0;
+      justify-content: space-between;
+      align-items: center;
+      flex-shrink: 0;
+    }
 
     /* 入力エリア */
     .input-box-area {
-      padding: 12px 16px;
+      padding: 10px 16px;
       background: #ffffff;
       display: flex;
       gap: 8px;
@@ -345,7 +426,6 @@
     }
     .user-item:hover { transform: translateY(-2px); border-color: #0284c7; }
 
-    /* 未読を知らせる赤いドットランプ */
     .unread-red-dot {
       width: 10px;
       height: 10px;
@@ -356,7 +436,6 @@
       flex-shrink: 0;
     }
 
-    /* --- スタイリッシュなステータスランプ (Discord風) --- */
     .status-indicator {
       width: 10px;
       height: 10px;
@@ -429,7 +508,7 @@
   <!-- 名前変更モーダル -->
   <div id="settingsModal" class="custom-modal" style="display: none;">
     <div class="modal-card">
-      <div class="modal-title">⚙️ 道下ネームの設定</div>
+      <div class="modal-title">⚙️ 道下設定</div>
       <div class="modal-desc">いつでも名前を変更できます。</div>
       <input type="text" id="changeNameInput" class="modal-input" maxlength="10">
       <div style="display: flex; gap: 8px;">
@@ -444,30 +523,35 @@
     <header class="app-header">
       <div class="logo-area" id="headerUserTag">道下: 読み込み中...</div>
       <div class="header-actions">
-        <button class="header-btn" id="soundToggleBtn" onclick="toggleSound()">🔇 ミュート</button>
-        <button class="header-btn" onclick="requestNotificationPermission()">🔔 通知</button>
-        <button class="header-btn" onclick="openSettingsModal()">⚙️ 設定</button>
-        <button class="header-btn" id="ratioToggleBtn" onclick="toggleScreenMode()">💻 PC</button>
+        <button class="header-btn btn-panic" onclick="triggerPanic()">🚨 逃走</button>
+        <button class="header-btn" id="soundToggleBtn" onclick="toggleSound()">🔇</button>
+        <button class="header-btn" onclick="requestNotificationPermission()">🔔</button>
+        <button class="header-btn" onclick="openSettingsModal()">⚙️</button>
+        <button class="header-btn" id="ratioToggleBtn" onclick="toggleScreenMode()">💻</button>
       </div>
     </header>
 
     <!-- タブバー -->
     <div class="tab-bar">
-      <div class="tab-item active" onclick="switchTab('channel')">💬 全体チャンネル</div>
+      <div class="tab-item active" onclick="switchTab('channel')">💬 チャンネル</div>
       <div class="tab-item" onclick="switchTab('dm')">
         個人チャット
         <span class="tab-unread-dot" id="tabUnreadDot"></span>
       </div>
-      <div class="tab-item" onclick="switchTab('call')">📞 通話(使用不可)</div>
+      <div class="tab-item" onclick="switchTab('call')">📞 通話</div>
     </div>
 
     <!-- ================= 1. 全体チャンネル ================= -->
     <div id="viewChannel" class="view-content active">
       <div class="messages-area" id="channelMessages"></div>
+      <div id="replyingBar" class="replying-bar">
+        <span id="replyingText"></span>
+        <button onclick="cancelReply()" style="background:none; border:none; font-weight:900; cursor:pointer; color:#ef4444;">✕ 取消</button>
+      </div>
       <div class="input-box-area">
         <input type="file" id="channelImgInput" accept="image/*" style="display: none;" onchange="sendImage(this, 'channel')">
         <button class="btn-icon" onclick="playTapSound(); document.getElementById('channelImgInput').click()">📷</button>
-        <input type="text" id="channelInput" class="text-input" placeholder="メッセージを入力..." onkeydown="if(event.key==='Enter') sendChannelMsg()">
+        <input type="text" id="channelInput" class="text-input" placeholder="全体チャンネルへ送信..." onkeydown="if(event.key==='Enter') sendChannelMsg()">
         <button class="btn-clean" onclick="sendChannelMsg()">送信</button>
       </div>
     </div>
@@ -485,6 +569,10 @@
           <div style="width: 45px;"></div>
         </div>
         <div class="messages-area" id="dmMessagesContainer"></div>
+        <div id="dmReplyingBar" class="replying-bar" style="display: none;">
+          <span id="dmReplyingText"></span>
+          <button onclick="cancelReply()" style="background:none; border:none; font-weight:900; cursor:pointer; color:#ef4444;">✕ 取消</button>
+        </div>
         <div class="input-box-area">
           <input type="file" id="dmImgInput" accept="image/*" style="display: none;" onchange="sendImage(this, 'dm')">
           <button class="btn-icon" onclick="playTapSound(); document.getElementById('dmImgInput').click()">📷</button>
@@ -535,6 +623,12 @@
     let currentActiveDmUser = null;
     let isPcMode = false;
     let isSoundOn = localStorage.getItem('SECRET_NETWORK_SOUND') === 'ON';
+    let replyingTo = null; // リプライ用データ
+
+    // --- 緊急避難パニックボタン (Google Classroomへ直撃) ---
+    function triggerPanic() {
+      window.location.replace("https://classroom.google.com");
+    }
 
     // --- サウンド（Web Audio API）関連 ---
     let audioCtx = null;
@@ -570,10 +664,8 @@
       isSoundOn = !isSoundOn;
       localStorage.setItem('SECRET_NETWORK_SOUND', isSoundOn ? 'ON' : 'OFF');
       const btn = document.getElementById('soundToggleBtn');
-      btn.innerText = isSoundOn ? '🔊 音声ON' : '🔇 ミュート';
-      if (isSoundOn) {
-        playTapSound();
-      }
+      btn.innerText = isSoundOn ? '🔊' : '🔇';
+      if (isSoundOn) playTapSound();
     }
 
     // --- ブラウザ通知機能 ---
@@ -586,7 +678,7 @@
         if (permission === "granted") {
           alert("通知が許可されました！新着メッセージでお知らせします。");
         } else {
-          alert("通知が拒否されました。ブラウザの設定から許可してください。");
+          alert("通知が拒否されました。");
         }
       });
     }
@@ -602,7 +694,7 @@
 
     window.onload = function() {
       const btn = document.getElementById('soundToggleBtn');
-      btn.innerText = isSoundOn ? '🔊 音声ON' : '🔇 ミュート';
+      btn.innerText = isSoundOn ? '🔊' : '🔇';
 
       if (myName) {
         document.getElementById('nameModal').style.display = 'none';
@@ -660,11 +752,11 @@
       if (isPcMode) {
         container.classList.remove('mode-mobile');
         container.classList.add('mode-pc');
-        btn.innerText = "📱 スマホ";
+        btn.innerText = "📱";
       } else {
         container.classList.remove('mode-pc');
         container.classList.add('mode-mobile');
-        btn.innerText = "💻 PC";
+        btn.innerText = "💻";
       }
     }
 
@@ -702,6 +794,41 @@
       document.getElementById('view' + tabName.charAt(0).toUpperCase() + tabName.slice(1)).classList.add('active');
     }
 
+    // --- リプライ設定 ---
+    function setReply(name, text) {
+      playTapSound();
+      replyingTo = { name, text };
+      const barText = `↩️ ${name} さんへ返信: "${text.substring(0, 20)}..."`;
+      
+      document.getElementById('replyingText').innerText = barText;
+      document.getElementById('replyingBar').style.display = 'flex';
+      document.getElementById('dmReplyingText').innerText = barText;
+      document.getElementById('dmReplyingBar').style.display = 'flex';
+    }
+
+    function cancelReply() {
+      playTapSound();
+      replyingTo = null;
+      document.getElementById('replyingBar').style.display = 'none';
+      document.getElementById('dmReplyingBar').style.display = 'none';
+    }
+
+    // --- リアクション処理 ---
+    function toggleReaction(path, msgKey, emoji) {
+      playTapSound();
+      const ref = db.ref(`${path}/${msgKey}/reactions/${emoji}`);
+      ref.once('value', (snap) => {
+        const users = snap.val() || {};
+        if (users[myName]) {
+          // すでに押していたら解除
+          ref.child(myName).remove();
+        } else {
+          // 押していなかったら追加
+          ref.child(myName).set(true);
+        }
+      });
+    }
+
     // --- 全体チャンネルチャット ---
     let lastChannelMsgCount = null;
     function initChannelSync() {
@@ -726,14 +853,44 @@
           div.className = `chat-bubble ${isMine ? 'mine' : ''}`;
           
           let html = `<div class="bubble-name">${msg.name} (${msg.time})</div>`;
+          
+          // リプライ引用
+          if (msg.replyTo) {
+            html += `<div class="reply-quote">↩️ ${msg.replyTo.name}: ${escapeHtml(msg.replyTo.text)}</div>`;
+          }
+
           if (msg.type === 'image') {
             html += `<img src="${msg.data}" class="chat-img" onclick="window.open('${msg.data}')">`;
           } else {
             html += `<div>${escapeHtml(msg.text)}</div>`;
           }
+
+          // リアクション表示
+          const reactions = msg.reactions || {};
+          const availableEmojis = ['👍', '🔥', '草', '❤️'];
+          let reactionHtml = '<div class="reactions-container">';
+          availableEmojis.forEach(emoji => {
+            const rUsers = reactions[emoji] || {};
+            const count = Object.keys(rUsers).length;
+            const hasReacted = rUsers[myName] ? 'active' : '';
+            reactionHtml += `<button class="reaction-pill ${hasReacted}" onclick="toggleReaction('secret_channel', '${key}', '${emoji}')">${emoji} ${count > 0 ? count : ''}</button>`;
+          });
+          reactionHtml += '</div>';
+          html += reactionHtml;
+
+          // 既読カウンター計算（全体チャンネルでは自分以外のアクセス数を簡易表示）
+          // アクティブユーザー数をカウントして既読表示
+          let readCountText = "既読";
+          html += `<div class="read-counter">${readCountText}</div>`;
+
+          // アクション (返信・削除)
+          html += `<div class="msg-actions">
+            <button class="msg-action-btn" onclick="setReply('${msg.name}', '${msg.text || '画像'}')">↩️ 返信</button>`;
           if (isMine) {
-            html += `<button class="btn-delete-msg" onclick="deleteChannelMsg('${key}')">🗑️ 取り消し</button>`;
+            html += `<button class="msg-action-btn" onclick="deleteChannelMsg('${key}')">🗑️ 取消</button>`;
           }
+          html += `</div>`;
+
           div.innerHTML = html;
           container.appendChild(div);
         });
@@ -744,16 +901,18 @@
     function sendChannelMsg() {
       const input = document.getElementById('channelInput');
       const text = input.value.trim();
-      if (!text) return;
+      if (!text && !replyingTo) return;
 
       playSendSound();
       db.ref('secret_channel').push({
         name: myName,
-        text: text,
+        text: text || "",
         type: 'text',
+        replyTo: replyingTo ? { name: replyingTo.name, text: replyingTo.text } : null,
         time: new Date().toLocaleTimeString('ja-JP', {hour: '2-digit', minute:'2-digit'})
       });
       input.value = '';
+      cancelReply();
     }
 
     function deleteChannelMsg(msgKey) {
@@ -763,7 +922,7 @@
       }
     }
 
-    // --- 個人チャット (DM ＆ 赤点ランプ) ---
+    // --- 個人チャット (DM ＆ ステータスランプ) ---
     function initUserListSync() {
       const container = document.getElementById('onlineUserListContainer');
       const tabUnreadDot = document.getElementById('tabUnreadDot');
@@ -811,7 +970,6 @@
             container.appendChild(div);
           });
 
-          // 個人チャットタブ自体の赤点ランプ制御
           if (anyUnreadExists) {
             tabUnreadDot.classList.add('show');
           } else {
@@ -869,14 +1027,43 @@
           div.className = `chat-bubble ${isMine ? 'mine' : ''}`;
           
           let html = `<div class="bubble-name">${msg.name} (${msg.time})</div>`;
+          
+          if (msg.replyTo) {
+            html += `<div class="reply-quote">↩️ ${msg.replyTo.name}: ${escapeHtml(msg.replyTo.text)}</div>`;
+          }
+
           if (msg.type === 'image') {
             html += `<img src="${msg.data}" class="chat-img" onclick="window.open('${msg.data}')">`;
           } else {
             html += `<div>${escapeHtml(msg.text)}</div>`;
           }
-          if (isMine) {
-            html += `<button class="btn-delete-msg" onclick="deleteDmMsg('${roomId}', '${key}')">🗑️ 取り消し</button>`;
+
+          // リアクション
+          const reactions = msg.reactions || {};
+          const availableEmojis = ['👍', '🔥', '草', '❤️'];
+          let reactionHtml = '<div class="reactions-container">';
+          availableEmojis.forEach(emoji => {
+            const rUsers = reactions[emoji] || {};
+            const count = Object.keys(rUsers).length;
+            const hasReacted = rUsers[myName] ? 'active' : '';
+            reactionHtml += `<button class="reaction-pill ${hasReacted}" onclick="toggleReaction('secret_dms/${roomId}', '${key}', '${emoji}')">${emoji} ${count > 0 ? count : ''}</button>`;
+          });
+          reactionHtml += '</div>';
+          html += reactionHtml;
+
+          // 既読カウンター (DMなら相手が読んでいるか)
+          let readStatus = msg.name === myName ? "既読" : "";
+          if (readStatus) {
+            html += `<div class="read-counter">${readStatus}</div>`;
           }
+
+          html += `<div class="msg-actions">
+            <button class="msg-action-btn" onclick="setReply('${msg.name}', '${msg.text || '画像'}')">↩️ 返信</button>`;
+          if (isMine) {
+            html += `<button class="msg-action-btn" onclick="deleteDmMsg('${roomId}', '${key}')">🗑️ 取消</button>`;
+          }
+          html += `</div>`;
+
           div.innerHTML = html;
           container.appendChild(div);
         });
@@ -888,20 +1075,22 @@
       if (!currentActiveDmUser) return;
       const input = document.getElementById('dmInput');
       const text = input.value.trim();
-      if (!text) return;
+      if (!text && !replyingTo) return;
 
       playSendSound();
       const roomId = getDmRoomId(myName, currentActiveDmUser);
       const now = Date.now();
       db.ref('secret_dms/' + roomId).push({
         name: myName,
-        text: text,
+        text: text || "",
         type: 'text',
+        replyTo: replyingTo ? { name: replyingTo.name, text: replyingTo.text } : null,
         rawTime: now,
         time: new Date(now).toLocaleTimeString('ja-JP', {hour: '2-digit', minute:'2-digit'})
       });
       localStorage.setItem('LAST_READ_' + roomId, now);
       input.value = '';
+      cancelReply();
     }
 
     function deleteDmMsg(roomId, msgKey) {
