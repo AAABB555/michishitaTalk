@@ -8,79 +8,168 @@
   <!-- Firebase CDN -->
   <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-app-compat.js"></script>
   <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-database-compat.js"></script>
-  <!-- PeerJS CDN (音声・ビデオ通話用) -->
+  <!-- PeerJS CDN -->
   <script src="https://unpkg.com/peerjs@1.4.7/dist/peerjs.min.js"></script>
   <style>
     * {
       box-sizing: border-box;
       margin: 0;
       padding: 0;
+      -webkit-tap-highlight-color: transparent;
       user-select: none;
     }
 
+    html, body {
+      height: 100%;
+    }
+
     body {
-      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
-      background: #0f172a;
-      color: #f8fafc;
-      height: 100vh;
+      font-family: -apple-system, BlinkMacSystemFont, "Hiragino Kaku Gothic ProN", "Yu Gothic", "Meiryo", sans-serif;
+      background: linear-gradient(180deg, #7dd3fc 0%, #bae6fd 40%, #86efac 75%, #4ade80 100%);
+      background-attachment: fixed;
+      color: #1e293b;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      padding: 12px;
+    }
+
+    /* メインアプリコンテナ（PC 16:9風 / スマホ 9:16風に美しく収まるカード） */
+    .app-container {
+      width: 100%;
+      max-width: 480px;
+      height: 100%;
+      max-height: 850px;
+      background: rgba(255, 255, 255, 0.94);
+      backdrop-filter: blur(14px);
+      border: 2px solid rgba(255, 255, 255, 0.9);
+      border-radius: 24px;
+      box-shadow: 0 16px 36px rgba(0, 0, 0, 0.12);
       display: flex;
       flex-direction: column;
       overflow: hidden;
+      position: relative;
     }
 
-    /* ヘッダーナビ */
+    /* --- 名前設定モーダル --- */
+    #nameModal {
+      position: absolute;
+      inset: 0;
+      background: rgba(15, 23, 42, 0.85);
+      backdrop-filter: blur(8px);
+      z-index: 1000;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      padding: 24px;
+    }
+    .modal-card {
+      background: #ffffff;
+      width: 100%;
+      border-radius: 22px;
+      padding: 28px;
+      text-align: center;
+      box-shadow: 0 20px 40px rgba(0,0,0,0.3);
+      border: 2px solid #e0f2fe;
+    }
+    .modal-title {
+      font-size: 20px;
+      font-weight: 900;
+      color: #0284c7;
+      margin-bottom: 8px;
+    }
+    .modal-desc {
+      font-size: 13px;
+      color: #64748b;
+      margin-bottom: 20px;
+      line-height: 1.5;
+    }
+    .modal-input {
+      width: 100%;
+      height: 48px;
+      border: 2px solid #bae6fd;
+      border-radius: 24px;
+      padding: 0 16px;
+      font-size: 16px;
+      font-weight: 800;
+      color: #0284c7;
+      text-align: center;
+      outline: none;
+      background: #f8fafc;
+      margin-bottom: 16px;
+    }
+    .modal-input:focus {
+      border-color: #0284c7;
+      background: #ffffff;
+      box-shadow: 0 0 0 3px rgba(2, 132, 199, 0.2);
+    }
+
+    /* ヘッダー */
     .app-header {
-      background: #1e293b;
-      padding: 12px 20px;
+      background: rgba(255, 255, 255, 0.95);
+      padding: 14px 18px;
       display: flex;
       justify-content: space-between;
       align-items: center;
-      border-bottom: 1px solid #334155;
+      border-bottom: 2px solid rgba(226, 232, 240, 0.8);
     }
-
-    .nav-tabs {
+    .logo-area {
+      font-weight: 900;
+      font-size: 16px;
+      color: #0284c7;
       display: flex;
-      gap: 10px;
+      align-items: center;
+      gap: 6px;
     }
-
-    .tab-btn {
-      background: #334155;
-      color: #cbd5e1;
-      border: none;
-      padding: 8px 16px;
-      border-radius: 8px;
-      font-size: 14px;
-      font-weight: bold;
-      cursor: pointer;
-      transition: background 0.15s;
-    }
-    .tab-btn.active {
-      background: #0284c7;
-      color: #fff;
-    }
-
-    .user-badge {
+    .user-tag {
       font-size: 12px;
-      color: #38bdf8;
-      background: #0f172a;
-      padding: 6px 12px;
-      border-radius: 6px;
-      border: 1px solid #334155;
+      font-weight: 800;
+      background: rgba(2, 132, 199, 0.1);
+      color: #0284c7;
+      padding: 4px 10px;
+      border-radius: 12px;
     }
 
-    /* メインビュー */
-    .view-container {
+    /* タブバー */
+    .tab-bar {
+      display: flex;
+      background: #f1f5f9;
+      padding: 6px;
+      gap: 4px;
+      border-bottom: 1px solid #e2e8f0;
+    }
+    .tab-item {
+      flex: 1;
+      text-align: center;
+      padding: 10px 0;
+      font-size: 12.5px;
+      font-weight: 800;
+      color: #64748b;
+      cursor: pointer;
+      border-radius: 10px;
+      transition: all 0.15s;
+    }
+    .tab-item.active {
+      background: #0284c7;
+      color: #ffffff;
+      box-shadow: 0 2px 8px rgba(2, 132, 199, 0.3);
+    }
+
+    /* ビュー切り替え */
+    .view-content {
       flex: 1;
       display: none;
       flex-direction: column;
       overflow: hidden;
+      background: #f8fafc;
     }
-    .view-container.active {
+    .view-content.active {
       display: flex;
     }
 
-    /* --- チャットビュー --- */
-    .chat-messages {
+    /* --- チャット・DM共通 --- */
+    .messages-area {
       flex: 1;
       padding: 16px;
       overflow-y: auto;
@@ -88,199 +177,244 @@
       flex-direction: column;
       gap: 12px;
     }
-
-    .chat-msg {
-      background: #1e293b;
+    .chat-bubble {
+      background: #ffffff;
+      border: 1.5px solid #e2e8f0;
       padding: 10px 14px;
-      border-radius: 12px;
-      max-width: 75%;
+      border-radius: 16px;
+      max-width: 80%;
       word-break: break-all;
-      border: 1px solid #334155;
+      box-shadow: 0 2px 6px rgba(0,0,0,0.03);
     }
-    .chat-msg.mine {
-      background: #0284c7;
+    .chat-bubble.mine {
+      background: linear-gradient(135deg, #0284c7 0%, #0369a1 100%);
+      color: #ffffff;
       align-self: flex-end;
-      border-color: #0369a1;
+      border-color: #0284c7;
     }
-    .msg-name {
-      font-size: 11px;
-      color: #94a3b8;
-      margin-bottom: 4px;
+    .bubble-name {
+      font-size: 10.5px;
+      color: #64748b;
+      margin-bottom: 3px;
+      font-weight: 800;
     }
-    .chat-msg.mine .msg-name { color: #e0f2fe; text-align: right; }
-
+    .chat-bubble.mine .bubble-name { color: #bae6fd; text-align: right; }
     .chat-img {
       max-width: 100%;
-      max-height: 250px;
-      border-radius: 8px;
+      max-height: 200px;
+      border-radius: 10px;
       margin-top: 6px;
       cursor: pointer;
     }
 
-    .chat-input-area {
-      padding: 14px;
-      background: #1e293b;
+    .input-box-area {
+      padding: 12px 16px;
+      background: #ffffff;
       display: flex;
-      gap: 10px;
-      border-top: 1px solid #334155;
+      gap: 8px;
+      border-top: 1.5px solid #e2e8f0;
     }
-
-    .chat-input {
+    .text-input {
       flex: 1;
-      background: #0f172a;
-      border: 1px solid #475569;
-      color: #fff;
-      padding: 10px 14px;
-      border-radius: 8px;
+      height: 44px;
+      border: 2px solid #bae6fd;
+      border-radius: 22px;
+      padding: 0 16px;
       outline: none;
       font-size: 14px;
+      font-weight: 700;
+      background: #f8fafc;
+      color: #1e293b;
     }
+    .text-input:focus { border-color: #0284c7; background: #ffffff; }
 
-    .btn-action {
-      background: #0284c7;
-      color: #fff;
+    .btn-clean {
+      background: linear-gradient(135deg, #0284c7 0%, #0369a1 100%);
+      color: #ffffff;
       border: none;
       padding: 0 18px;
-      border-radius: 8px;
-      font-weight: bold;
+      height: 44px;
+      border-radius: 22px;
+      font-weight: 900;
+      font-size: 13.5px;
       cursor: pointer;
+      box-shadow: 0 4px 12px rgba(2, 132, 199, 0.3);
+      white-space: nowrap;
     }
-    .btn-action:hover { background: #0369a1; }
-
-    .btn-img {
-      background: #475569;
-      color: #fff;
+    .btn-icon {
+      background: #e0f2fe;
+      color: #0284c7;
       border: none;
-      padding: 0 14px;
-      border-radius: 8px;
-      font-weight: bold;
+      width: 44px;
+      height: 44px;
+      border-radius: 50%;
+      font-size: 18px;
       cursor: pointer;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      flex-shrink: 0;
     }
+
+    /* --- DMユーザーリスト画面 --- */
+    .dm-layout {
+      display: flex;
+      flex-direction: column;
+      height: 100%;
+    }
+    .user-list-pane {
+      flex: 1;
+      padding: 16px;
+      overflow-y: auto;
+    }
+    .user-item {
+      background: #ffffff;
+      border: 1.5px solid #e2e8f0;
+      padding: 14px 18px;
+      border-radius: 14px;
+      margin-bottom: 10px;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      font-weight: 800;
+      cursor: pointer;
+      box-shadow: 0 2px 6px rgba(0,0,0,0.03);
+      transition: transform 0.1s;
+    }
+    .user-item:hover { transform: translateY(-2px); border-color: #0284c7; }
 
     /* --- 通話ビュー --- */
-    .call-view {
-      padding: 24px;
+    .call-pane {
+      padding: 20px;
       display: flex;
       flex-direction: column;
       align-items: center;
       justify-content: center;
-      gap: 20px;
+      gap: 16px;
       height: 100%;
     }
-
-    .call-card {
-      background: #1e293b;
-      border: 1px solid #334155;
-      border-radius: 16px;
-      padding: 24px;
-      width: 100%;
-      max-width: 400px;
-      text-align: center;
-    }
-
-    .video-grid {
+    .video-grid-box {
       display: grid;
-      grid-template-columns: 1fr 1fr;
+      grid-template-columns: 1fr;
       gap: 10px;
       width: 100%;
-      max-width: 600px;
-      margin-bottom: 16px;
+      max-width: 400px;
     }
-
-    .video-box {
+    .video-card {
       background: #0f172a;
-      border: 2px solid #334155;
-      border-radius: 12px;
-      aspect-ratio: 4/3;
+      border-radius: 14px;
+      aspect-ratio: 16/9;
       display: flex;
       align-items: center;
       justify-content: center;
       overflow: hidden;
       position: relative;
+      border: 2px solid #cbd5e1;
     }
-
-    .video-box video {
-      width: 100%;
-      height: 100%;
-      object-fit: cover;
-    }
-
-    .video-label {
+    .video-card video { width: 100%; height: 100%; object-fit: cover; }
+    .video-tag {
       position: absolute;
       bottom: 8px;
       left: 8px;
       background: rgba(0,0,0,0.6);
-      padding: 2px 8px;
-      border-radius: 4px;
-      font-size: 11px;
-    }
-
-    .id-input {
-      width: 100%;
-      background: #0f172a;
-      border: 1px solid #475569;
       color: #fff;
-      padding: 10px;
-      border-radius: 8px;
-      text-align: center;
-      font-size: 16px;
-      margin-bottom: 12px;
-      outline: none;
-      letter-spacing: 1px;
+      font-size: 10px;
+      padding: 2px 8px;
+      border-radius: 6px;
     }
   </style>
 </head>
 <body>
 
-  <!-- ヘッダー -->
-  <header class="app-header">
-    <div class="nav-tabs">
-      <button class="tab-btn active" onclick="switchView('chat')">💬 チャンネル</button>
-      <button class="tab-btn" onclick="switchView('call')">📞 音声・ビデオ通話</button>
-    </div>
-    <div class="user-badge" id="myUserBadge">接続中...</div>
-  </header>
-
-  <!-- ================= 1. チャットビュー ================= -->
-  <div id="viewChat" class="view-container active">
-    <div class="chat-messages" id="chatMessagesContainer"></div>
-    <div class="chat-input-area">
-      <input type="file" id="imageFileInput" accept="image/*" style="display: none;" onchange="sendImageFile(this)">
-      <button class="btn-img" onclick="document.getElementById('imageFileInput').click()">📷</button>
-      <input type="text" id="chatInputText" class="chat-input" placeholder="メッセージを入力..." onkeydown="if(event.key==='Enter') sendChatMessage()">
-      <button class="btn-action" onclick="sendChatMessage()">送信</button>
+  <!-- 名前の初期設定モーダル -->
+  <div id="nameModal">
+    <div class="modal-card">
+      <div class="modal-title">🔐 エージェント登録</div>
+      <div class="modal-desc">通信網で使用するあなたの名前（エージェント名）を決めてください。</div>
+      <input type="text" id="initialNameInput" class="modal-input" placeholder="例: 道下ファン" maxlength="10">
+      <button class="btn-clean" style="width: 100%; height: 48px; border-radius: 24px;" onclick="saveInitialName()">通信網に参加する</button>
     </div>
   </div>
 
-  <!-- ================= 2. 通話ビュー ================= -->
-  <div id="viewCall" class="view-container">
-    <div class="call-view">
-      <div class="video-grid">
-        <div class="video-box">
-          <video id="localVideo" autoplay muted playsinline></video>
-          <div class="video-label">自分</div>
+  <div class="app-container">
+    <!-- ヘッダー -->
+    <header class="app-header">
+      <div class="logo-area">
+        <span>💬 シークレット通信網</span>
+      </div>
+      <div class="user-tag" id="headerUserTag">設定中...</div>
+    </header>
+
+    <!-- タブバー -->
+    <div class="tab-bar">
+      <div class="tab-item active" onclick="switchTab('channel')">💬 全体チャンネル</div>
+      <div class="tab-item" onclick="switchTab('dm')">✉️ 個人チャット</div>
+      <div class="tab-item" onclick="switchTab('call')">📞 通話</div>
+    </div>
+
+    <!-- ================= 1. 全体チャンネル ================= -->
+    <div id="viewChannel" class="view-content active">
+      <div class="messages-area" id="channelMessages"></div>
+      <div class="input-box-area">
+        <input type="file" id="channelImgInput" accept="image/*" style="display: none;" onchange="sendImage(this, 'channel')">
+        <button class="btn-icon" onclick="document.getElementById('channelImgInput').click()">📷</button>
+        <input type="text" id="channelInput" class="text-input" placeholder="メッセージを入力..." onkeydown="if(event.key==='Enter') sendChannelMsg()">
+        <button class="btn-clean" onclick="sendChannelMsg()">送信</button>
+      </div>
+    </div>
+
+    <!-- ================= 2. 個人チャット (DM) ================= -->
+    <div id="viewDm" class="view-content">
+      <div class="dm-layout" id="dmUserListLayout">
+        <div style="padding: 16px 16px 8px; font-weight: 900; font-size: 14px; color: #64748b;">オンラインのエージェント一覧</div>
+        <div class="user-list-pane" id="onlineUserListContainer"></div>
+      </div>
+      <div class="dm-layout" id="dmChatRoomLayout" style="display: none;">
+        <div style="background: #ffffff; padding: 10px 16px; border-bottom: 1px solid #e2e8f0; display: flex; align-items: center; justify-content: space-between;">
+          <button class="btn-clean" style="height: 32px; padding: 0 12px; font-size: 12px; background: #64748b;" onclick="backToUserList()">← 戻る</button>
+          <div id="activeDmTitle" style="font-weight: 900; font-size: 14px; color: #0284c7;"></div>
+          <div style="width: 50px;"></div>
         </div>
-        <div class="video-box">
-          <video id="remoteVideo" autoplay playsinline></video>
-          <div class="video-label">相手</div>
+        <div class="messages-area" id="dmMessagesContainer"></div>
+        <div class="input-box-area">
+          <input type="file" id="dmImgInput" accept="image/*" style="display: none;" onchange="sendImage(this, 'dm')">
+          <button class="btn-icon" onclick="document.getElementById('dmImgInput').click()">📷</button>
+          <input type="text" id="dmInput" class="text-input" placeholder="DMを入力..." onkeydown="if(event.key==='Enter') sendDmMsg()">
+          <button class="btn-clean" onclick="sendDmMsg()">送信</button>
         </div>
       </div>
+    </div>
 
-      <div class="call-card">
-        <h3 style="margin-bottom: 8px; font-size: 16px;">通話接続パネル</h3>
-        <p style="font-size: 12px; color: #94a3b8; margin-bottom: 14px;">相手のIDを入力して呼び出します</p>
-        <input type="text" id="targetPeerIdInput" class="id-input" placeholder="相手のIDを入力">
-        <div style="display: flex; gap: 10px;">
-          <button class="btn-action" style="flex:1; background: #10b981; padding: 12px;" onclick="startCall(false)">📞 音声通話</button>
-          <button class="btn-action" style="flex:1; background: #0284c7; padding: 12px;" onclick="startCall(true)">📹 ビデオ通話</button>
-          <button class="btn-action" style="background: #ef4444; padding: 12px;" onclick="hangUpCall()">切断</button>
+    <!-- ================= 3. 通話タブ ================= -->
+    <div id="viewCall" class="view-content">
+      <div class="call-pane">
+        <div class="video-grid-box">
+          <div class="video-card">
+            <video id="localVideo" autoplay muted playsinline></video>
+            <div class="video-tag">自分</div>
+          </div>
+          <div class="video-card">
+            <video id="remoteVideo" autoplay playsinline></video>
+            <div class="video-tag">相手</div>
+          </div>
+        </div>
+        <div style="width: 100%; max-width: 400px; background: #ffffff; padding: 16px; border-radius: 16px; border: 1.5px solid #e2e8f0; text-align: center;">
+          <div style="font-size: 12.5px; font-weight: 800; color: #64748b; margin-bottom: 8px;">相手のIDを入力して呼び出し</div>
+          <input type="text" id="targetIdInput" class="text-input" placeholder="相手の名前(ID)" style="text-align: center; margin-bottom: 10px;">
+          <div style="display: flex; gap: 8px;">
+            <button class="btn-clean" style="flex:1; background: #10b981;" onclick="startCall(false)">音声通話</button>
+            <button class="btn-clean" style="flex:1;" onclick="startCall(true)">ビデオ通話</button>
+            <button class="btn-clean" style="background: #ef4444;" onclick="hangUp()">切断</button>
+          </div>
         </div>
       </div>
     </div>
   </div>
 
   <script>
-    // --- Firebase 設定 (道下タイピングのDBを共有利用) ---
+    const STORAGE_NAME_KEY = 'SECRET_NETWORK_AGENT_NAME_V1';
+    let myName = localStorage.getItem(STORAGE_NAME_KEY) || "";
+
     const firebaseConfig = {
       databaseURL: "https://michishita-typing-94d91-default-rtdb.firebaseio.com"
     };
@@ -289,53 +423,87 @@
     }
     const db = firebase.database();
 
-    let myName = "エージェント_" + Math.floor(Math.random() * 900 + 100);
-    document.getElementById('myUserBadge').innerText = `ID: ${myName}`;
+    let currentActiveDmUser = null;
 
-    // --- タブ切り替え ---
-    function switchView(viewName) {
-      document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
-      document.querySelectorAll('.view-container').forEach(v => v.classList.remove('active'));
-
-      if (viewName === 'chat') {
-        document.querySelector('.nav-tabs button:nth-child(1)').classList.add('active');
-        document.getElementById('viewChat').classList.add('active');
-      } else if (viewName === 'call') {
-        document.querySelector('.nav-tabs button:nth-child(2)').classList.add('active');
-        document.getElementById('viewCall').classList.add('active');
+    window.onload = function() {
+      if (myName) {
+        document.getElementById('nameModal').style.display = 'none';
+        initApp();
       }
+    };
+
+    function saveInitialName() {
+      const input = document.getElementById('initialNameInput').value.trim();
+      if (!input) {
+        alert("名前を入力してください！");
+        return;
+      }
+      myName = input.substring(0, 10);
+      localStorage.setItem(STORAGE_NAME_KEY, myName);
+      document.getElementById('nameModal').style.display = 'none';
+      initApp();
     }
 
-    // --- リアルタイムテキスト ＆ 画像チャット ---
-    function initChatSync() {
-      const container = document.getElementById('chatMessagesContainer');
-      db.ref('secret_chat_room').limitToLast(50).on('value', (snapshot) => {
+    function initApp() {
+      document.getElementById('headerUserTag').innerText = `ID: ${myName}`;
+      registerUserPresence();
+      initChannelSync();
+      initUserListSync();
+      initPeerJS();
+    }
+
+    // ユーザー一覧に自分を登録
+    function registerUserPresence() {
+      db.ref('secret_users/' + myName).set({
+        name: myName,
+        lastActive: Date.now()
+      });
+      db.ref('secret_users/' + myName).onDisconnect().remove();
+    }
+
+    // --- タブ切り替え ---
+    function switchTab(tabName) {
+      const tabs = ['channel', 'dm', 'call'];
+      tabs.forEach((t, idx) => {
+        document.querySelectorAll('.tab-item')[idx].classList.remove('active');
+        document.getElementById('view' + t.charAt(0).toUpperCase() + t.slice(1)).classList.remove('active');
+      });
+
+      const activeIdx = tabs.indexOf(tabName);
+      document.querySelectorAll('.tab-item')[activeIdx].classList.add('active');
+      document.getElementById('view' + tabName.charAt(0).toUpperCase() + tabName.slice(1)).classList.add('active');
+    }
+
+    // --- 全体チャンネルチャット ---
+    function initChannelSync() {
+      const container = document.getElementById('channelMessages');
+      db.ref('secret_channel').limitToLast(50).on('value', (snapshot) => {
         container.innerHTML = '';
         const data = snapshot.val() || {};
         Object.values(data).forEach(msg => {
           const div = document.createElement('div');
           const isMine = msg.name === myName;
-          div.className = `chat-msg ${isMine ? 'mine' : ''}`;
+          div.className = `chat-bubble ${isMine ? 'mine' : ''}`;
           
-          let contentHtml = `<div class="msg-name">${msg.name} (${msg.time})</div>`;
+          let html = `<div class="bubble-name">${msg.name} (${msg.time})</div>`;
           if (msg.type === 'image') {
-            contentHtml += `<img src="${msg.data}" class="chat-img" onclick="window.open('${msg.data}')">`;
+            html += `<img src="${msg.data}" class="chat-img" onclick="window.open('${msg.data}')">`;
           } else {
-            contentHtml += `<div>${escapeHtml(msg.text)}</div>`;
+            html += `<div>${escapeHtml(msg.text)}</div>`;
           }
-          div.innerHTML = contentHtml;
+          div.innerHTML = html;
           container.appendChild(div);
         });
         container.scrollTop = container.scrollHeight;
       });
     }
 
-    function sendChatMessage() {
-      const input = document.getElementById('chatInputText');
+    function sendChannelMsg() {
+      const input = document.getElementById('channelInput');
       const text = input.value.trim();
       if (!text) return;
 
-      db.ref('secret_chat_room').push({
+      db.ref('secret_channel').push({
         name: myName,
         text: text,
         type: 'text',
@@ -344,8 +512,85 @@
       input.value = '';
     }
 
-    // 写真をBase64に圧縮して送信
-    function sendImageFile(inputElement) {
+    // --- 個人チャット (DM) ---
+    function initUserListSync() {
+      const container = document.getElementById('onlineUserListContainer');
+      db.ref('secret_users').on('value', (snapshot) => {
+        container.innerHTML = '';
+        const users = snapshot.val() || {};
+        Object.values(users).forEach(u => {
+          if (u.name === myName) return; // 自分は除外
+          const div = document.createElement('div');
+          div.className = 'user-item';
+          div.innerHTML = `<span>💬 ${u.name}</span> <span style="font-size: 11px; color: #0284c7;">チャットを開く →</span>`;
+          div.onclick = () => openDmChat(u.name);
+          container.appendChild(div);
+        });
+      });
+    }
+
+    function getDmRoomId(userA, userB) {
+      return [userA, userB].sort().join('_');
+    }
+
+    function openDmChat(targetName) {
+      currentActiveDmUser = targetName;
+      document.getElementById('activeDmTitle').innerText = `${targetName} とのDM`;
+      document.getElementById('dmUserListLayout').style.display = 'none';
+      document.getElementById('dmChatRoomLayout').style.display = 'flex';
+      initDmSync();
+    }
+
+    function backToUserList() {
+      currentActiveDmUser = null;
+      document.getElementById('dmChatRoomLayout').style.display = 'none';
+      document.getElementById('dmUserListLayout').style.display = 'flex';
+    }
+
+    function initDmSync() {
+      if (!currentActiveDmUser) return;
+      const roomId = getDmRoomId(myName, currentActiveDmUser);
+      const container = document.getElementById('dmMessagesContainer');
+
+      db.ref('secret_dms/' + roomId).limitToLast(50).on('value', (snapshot) => {
+        container.innerHTML = '';
+        const data = snapshot.val() || {};
+        Object.values(data).forEach(msg => {
+          const div = document.createElement('div');
+          const isMine = msg.name === myName;
+          div.className = `chat-bubble ${isMine ? 'mine' : ''}`;
+          
+          let html = `<div class="bubble-name">${msg.name} (${msg.time})</div>`;
+          if (msg.type === 'image') {
+            html += `<img src="${msg.data}" class="chat-img" onclick="window.open('${msg.data}')">`;
+          } else {
+            html += `<div>${escapeHtml(msg.text)}</div>`;
+          }
+          div.innerHTML = html;
+          container.appendChild(div);
+        });
+        container.scrollTop = container.scrollHeight;
+      });
+    }
+
+    function sendDmMsg() {
+      if (!currentActiveDmUser) return;
+      const input = document.getElementById('dmInput');
+      const text = input.value.trim();
+      if (!text) return;
+
+      const roomId = getDmRoomId(myName, currentActiveDmUser);
+      db.ref('secret_dms/' + roomId).push({
+        name: myName,
+        text: text,
+        type: 'text',
+        time: new Date().toLocaleTimeString('ja-JP', {hour: '2-digit', minute:'2-digit'})
+      });
+      input.value = '';
+    }
+
+    // --- 写真送信機能 (共通) ---
+    function sendImage(inputElement, mode) {
       const file = inputElement.files[0];
       if (!file) return;
 
@@ -354,7 +599,7 @@
         const img = new Image();
         img.onload = function() {
           const canvas = document.createElement('canvas');
-          const MAX_WIDTH = 500;
+          const MAX_WIDTH = 450;
           let width = img.width;
           let height = img.height;
           if (width > MAX_WIDTH) {
@@ -363,16 +608,23 @@
           }
           canvas.width = width;
           canvas.height = height;
-          const canvasCtx = canvas.getContext('2d');
-          canvasCtx.drawImage(img, 0, 0, width, height);
+          const ctx = canvas.getContext('2d');
+          ctx.drawImage(img, 0, 0, width, height);
           const dataUrl = canvas.toDataURL('image/jpeg', 0.7);
 
-          db.ref('secret_chat_room').push({
+          const payload = {
             name: myName,
             data: dataUrl,
             type: 'image',
             time: new Date().toLocaleTimeString('ja-JP', {hour: '2-digit', minute:'2-digit'})
-          });
+          };
+
+          if (mode === 'channel') {
+            db.ref('secret_channel').push(payload);
+          } else if (mode === 'dm' && currentActiveDmUser) {
+            const roomId = getDmRoomId(myName, currentActiveDmUser);
+            db.ref('secret_dms/' + roomId).push(payload);
+          }
         }
         img.src = e.target.result;
       }
@@ -380,40 +632,25 @@
       inputElement.value = '';
     }
 
-    function escapeHtml(str) {
-      return str.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
-    }
-
-    // --- PeerJS による音声・ビデオ通話機能 ---
+    // --- PeerJS 通話機能 ---
     let peer = null;
     let localStream = null;
     let currentCall = null;
 
     function initPeerJS() {
-      // 自分の名前をPeerIDとして利用
       peer = new Peer(myName);
-
-      peer.on('open', (id) => {
-        console.log('Peer ID取得:', id);
-        // チャット内等で相手にIDを伝えられるよう自分のIDを表示
-        document.getElementById('myUserBadge').innerText = `ID: ${myName} (通話待受中)`;
-      });
-
-      // 着信時の処理
       peer.on('call', async (call) => {
-        if (confirm(`${call.peer} から着信がありました。応答しますか？`)) {
+        if (confirm(`${call.peer} から通話の着信です。応答しますか？`)) {
           try {
             localStream = await navigator.mediaDevices.getUserMedia({ video: true, audio: true });
             document.getElementById('localVideo').srcObject = localStream;
-            
             call.answer(localStream);
             currentCall = call;
-
-            call.on('stream', (remoteStream) => {
-              document.getElementById('remoteVideo').srcObject = remoteStream;
+            call.on('stream', (stream) => {
+              document.getElementById('remoteVideo').srcObject = stream;
             });
-          } catch (err) {
-            alert('カメラまたはマイクの取得に失敗しました。');
+          } catch (e) {
+            alert("カメラ・マイクの取得に失敗しました。");
           }
         } else {
           call.close();
@@ -422,51 +659,36 @@
     }
 
     async function startCall(withVideo) {
-      const targetId = document.getElementById('targetPeerIdInput').value.trim();
+      const targetId = document.getElementById('targetIdInput').value.trim();
       if (!targetId) {
-        alert('相手のIDを入力してください！');
+        alert("相手のエージェント名を入力してください！");
         return;
       }
-
       try {
         localStream = await navigator.mediaDevices.getUserMedia({ video: withVideo, audio: true });
         document.getElementById('localVideo').srcObject = localStream;
 
         const call = peer.call(targetId, localStream);
         currentCall = call;
-
-        call.on('stream', (remoteStream) => {
-          document.getElementById('remoteVideo').srcObject = remoteStream;
+        call.on('stream', (stream) => {
+          document.getElementById('remoteVideo').srcObject = stream;
         });
-
-        call.on('close', () => {
-          hangUpCall();
-        });
-        alert('呼び出し中...');
-      } catch (err) {
-        alert('マイク・カメラのアクセスが拒否されたか、利用できません。');
+        alert("呼び出し中...");
+      } catch (e) {
+        alert("マイク・カメラの利用が許可されていません。");
       }
     }
 
-    function hangUpCall() {
-      if (currentCall) {
-        currentCall.close();
-        currentCall = null;
-      }
-      if (localStream) {
-        localStream.getTracks().forEach(track => track.stop());
-        localStream = null;
-      }
+    function hangUp() {
+      if (currentCall) { currentCall.close(); currentCall = null; }
+      if (localStream) { localStream.getTracks().forEach(t => t.stop()); localStream = null; }
       document.getElementById('localVideo').srcObject = null;
       document.getElementById('remoteVideo').srcObject = null;
-      alert('通話を終了しました。');
     }
 
-    // --- 初期化 ---
-    window.onload = function() {
-      initChatSync();
-      initPeerJS();
-    };
+    function escapeHtml(str) {
+      return str.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+    }
   </script>
 </body>
 </html>
