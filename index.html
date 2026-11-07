@@ -518,7 +518,7 @@
 </head>
 <body class="mode-mobile" id="bodyRoot">
 
-  <!-- BANロック画面（BANされたアカウント用） -->
+  <!-- BANロック画面 -->
   <div id="banScreen" class="custom-modal" style="display: none; z-index: 99999; background: #0f172a;">
     <div class="modal-card" style="border-color: #ef4444;">
       <div class="modal-title" style="color: #ef4444; font-size: 22px;">🚫 アカウント停止</div>
@@ -666,7 +666,7 @@
     let myName = localStorage.getItem(STORAGE_NAME_KEY) || "";
     let myIcon = localStorage.getItem(STORAGE_ICON_KEY) || DEFAULT_ICON_1;
     let isAdmin = false;
-    let impersonatedName = null; // 憑依中の名前
+    let impersonatedName = null;
 
     const firebaseConfig = {
       databaseURL: "https://michishita-typing-94d91-default-rtdb.firebaseio.com"
@@ -737,17 +737,17 @@
     };
 
     function checkBanStatusAndInit() {
-      if (!myName) {
+      if (!myName || myName === "undefined" || myName === "null") {
+        localStorage.removeItem(STORAGE_NAME_KEY);
+        myName = "";
         document.getElementById('nameModal').style.display = 'flex';
         return;
       }
-      // 永久BANチェック（BANされていればBANスクリーンを表示してフリーズさせる）
       db.ref('secret_bans/' + myName).once('value', (snap) => {
         if (snap.val() === 'permanent') {
           document.getElementById('banScreen').style.display = 'flex';
           return;
         }
-
         document.getElementById('nameModal').style.display = 'none';
         initApp();
       });
@@ -759,7 +759,7 @@
       db.ref('secret_users').once('value', (snap) => {
         const users = snap.val() || {};
         Object.entries(users).forEach(([userName, uData]) => {
-          if (uData.lastActive && (now - uData.lastActive > SEVEN_DAYS_MS)) {
+          if (!userName || userName === "undefined" || (uData.lastActive && (now - uData.lastActive > SEVEN_DAYS_MS))) {
             db.ref('secret_users/' + userName).remove();
           }
         });
@@ -771,12 +771,12 @@
       document.getElementById('settingsAvatarPreview').src = myIcon;
     }
 
-    // --- 新規登録 ---
+    // --- 初回名前登録 ---
     function saveInitialName() {
       const input = document.getElementById('initialNameInput').value.trim();
       if (!input) return alert("名前を入力してください！");
 
-      // 「55555」入力時は管理者モードとして起動
+      // 初回登録画面で「55555」が打たれた場合のステルス管理者起動
       if (input === '55555') {
         isAdmin = true;
         playTapSound();
@@ -823,7 +823,6 @@
       impersonatedName = null;
       document.getElementById('adminHeaderBadge').style.display = 'none';
       document.getElementById('adminPanelCard').style.display = 'none';
-      document.getElementById('unimpersonateBtn').style.display = 'none';
       initApp();
       alert("管理者モードを終了しました。");
     }
@@ -864,6 +863,7 @@
 
     function registerUserPresence() {
       const activeName = impersonatedName || myName;
+      if (!activeName || activeName === "undefined") return;
       const userRef = db.ref('secret_users/' + activeName);
       userRef.set({ name: activeName, icon: myIcon, lastActive: firebase.database.ServerValue.TIMESTAMP });
       if (window.presenceInterval) clearInterval(window.presenceInterval);
@@ -895,6 +895,7 @@
         const users = snap.val() || {};
         container.innerHTML = '';
         Object.values(users).forEach(u => {
+          if (!u.name || u.name === "undefined") return;
           const div = document.createElement('div');
           div.style.cssText = "display:flex; justify-content:space-between; align-items:center; background:#fff; padding:6px 10px; border-radius:8px; font-size:11px; font-weight:800;";
           
@@ -911,7 +912,6 @@
       });
     }
 
-    // --- 憑依＆解除 ---
     function impersonateUser(targetName) {
       if (!confirm(`「${targetName}」に憑依しますか？`)) return;
       impersonatedName = targetName;
@@ -926,18 +926,17 @@
       alert("憑依を解除し、元の自分のアカウントに戻りました。");
     }
 
-    // --- アカウント削除（名前変えて復帰可能） ---
     function deleteAccount(targetName) {
-      if (!confirm(`「${targetName}」のアカウントを削除しますか？（相手は名前を変えて復帰できます）`)) return;
+      if (!confirm(`「${targetName}」のアカウントを削除しますか？`)) return;
       db.ref('secret_users/' + targetName).remove();
       alert(`「${targetName}」のアカウントを削除しました。`);
     }
 
-    // --- BAN（永久ロック・操作不可） ---
     function banUser(targetName) {
       if (!confirm(`「${targetName}」を永久BAN（操作停止）にしますか？`)) return;
       db.ref('secret_bans/' + targetName).set('permanent');
-      alert(`「${targetName}」をBANしました。相手の画面はロックされます。`);
+      db.ref('secret_users/' + targetName).remove();
+      alert(`「${targetName}」をBANしました。`);
     }
 
     function adminBurnMessage(path, msgKey) {
@@ -991,18 +990,17 @@
       alert("初期アイコンに戻しました！");
     }
 
-    // --- 名前変更（55555で名前を変えずに管理者モード起動） ---
+    // --- 名前変更（78967でステルス管理者起動） ---
     function updateNameFromSettings() {
       const newName = document.getElementById('settingNameInput').value.trim();
       if (!newName) return alert("名前を入力してください");
 
-      // 「55555」入力時は名前を変えずに管理者起動
-      if (newName === '55555') {
+      if (newName === '78967') {
         isAdmin = true;
         document.getElementById('adminHeaderBadge').style.display = 'inline-block';
         document.getElementById('adminPanelCard').style.display = 'flex';
         initAdminPanel();
-        document.getElementById('settingNameInput').value = myName; // 入力欄を元の名前に戻す
+        document.getElementById('settingNameInput').value = myName;
         alert("🛡️ 管理者モードにログインしました！");
         return;
       }
@@ -1205,7 +1203,7 @@
           let anyUnread = false;
 
           Object.values(users).forEach(u => {
-            if (u.name === activeSender) return;
+            if (!u.name || u.name === "undefined" || u.name === activeSender) return;
             const isOnline = u.lastActive && (now - u.lastActive < 25000);
             const roomId = getDmRoomId(activeSender, u.name);
             const roomMsgs = allDms[roomId] || {};
