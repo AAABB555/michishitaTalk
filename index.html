@@ -337,12 +337,6 @@
       padding: 2px 8px;
       border-radius: 10px;
       box-shadow: 0 2px 6px rgba(239, 68, 68, 0.4);
-      animation: pulseBadge 1.2s infinite;
-    }
-    @keyframes pulseBadge {
-      0% { transform: scale(1); }
-      50% { transform: scale(1.1); }
-      100% { transform: scale(1); }
     }
 
     /* --- 通話ビュー --- */
@@ -443,7 +437,7 @@
     <!-- ================= 2. 個人チャット (DM) ================= -->
     <div id="viewDm" class="view-content">
       <div class="dm-layout" id="dmUserListLayout">
-        <div style="padding: 12px 16px 6px; font-weight: 900; font-size: 13px; color: #64748b; flex-shrink: 0;">オンラインのエージェント一覧</div>
+        <div style="padding: 12px 16px 6px; font-weight: 900; font-size: 13px; color: #64748b; flex-shrink: 0;">エージェント一覧 (🟢 オンライン / 🔴 オフライン)</div>
         <div class="user-list-pane" id="onlineUserListContainer"></div>
       </div>
       <div class="dm-layout" id="dmChatRoomLayout" style="display: none;">
@@ -456,7 +450,7 @@
         <div class="input-box-area">
           <input type="file" id="dmImgInput" accept="image/*" style="display: none;" onchange="sendImage(this, 'dm')">
           <button class="btn-icon" onclick="document.getElementById('dmImgInput').click()">📷</button>
-          <input type="text" id="dmInput" class="text-input" placeholder="DMを入力..." onkeydown="if(event.key==='Enter') sendDmMsg()">
+          <input type="text" id="dmInput" class="text-input" placeholder="DMを入力 (オフラインでも送信可能)..." onkeydown="if(event.key==='Enter') sendDmMsg()">
           <button class="btn-clean" onclick="sendDmMsg()">送信</button>
         </div>
       </div>
@@ -537,7 +531,6 @@
         alert("名前を入力してください！");
         return;
       }
-      db.ref('secret_users/' + myName).remove();
       myName = newName.substring(0, 10);
       localStorage.setItem(STORAGE_NAME_KEY, myName);
       closeSettingsModal();
@@ -573,12 +566,19 @@
       initPeerJS();
     }
 
+    // オンライン状況を定期的に更新（10秒おき）
     function registerUserPresence() {
-      db.ref('secret_users/' + myName).set({
+      const userRef = db.ref('secret_users/' + myName);
+      userRef.set({
         name: myName,
-        lastActive: Date.now()
+        lastActive: firebase.database.ServerValue.TIMESTAMP
       });
-      db.ref('secret_users/' + myName).onDisconnect().remove();
+
+      // ハートビート（心臓音のように生存確認を送る）
+      if (window.presenceInterval) clearInterval(window.presenceInterval);
+      window.presenceInterval = setInterval(() => {
+        userRef.update({ lastActive: firebase.database.ServerValue.TIMESTAMP });
+      }, 10000);
     }
 
     function switchTab(tabName) {
@@ -640,31 +640,36 @@
       }
     }
 
-    // --- 個人チャット (DM ＆ 未読バッジ機能) ---
+    // --- 個人チャット (DM ＆ オンライン緑点/オフライン赤点・未読バッジ) ---
     function initUserListSync() {
       const container = document.getElementById('onlineUserListContainer');
       
       db.ref('secret_users').on('value', (userSnap) => {
         const users = userSnap.val() || {};
         
-        // 各DMの最新メッセージ状況も一緒に監視
         db.ref('secret_dms').on('value', (dmSnap) => {
           const allDms = dmSnap.val() || {};
           container.innerHTML = '';
 
+          const now = Date.now();
+
           Object.values(users).forEach(u => {
             if (u.name === myName) return;
+
+            // オンライン判定 (最終アクティブから25秒以内なら緑点、それ以外は赤点)
+            const isOnline = u.lastActive && (now - u.lastActive < 25000);
+            const statusDot = isOnline ? 
+              '<span style="display:inline-block; width:10px; height:10px; background:#22c55e; border-radius:50%; box-shadow:0 0 6px #22c55e;" title="オンライン"></span>' : 
+              '<span style="display:inline-block; width:10px; height:10px; background:#ef4444; border-radius:50%;" title="オフライン"></span>';
 
             const roomId = getDmRoomId(myName, u.name);
             const roomMsgs = allDms[roomId] || {};
             const msgKeys = Object.keys(roomMsgs);
             
-            // 未読判定：最後のメッセージが自分以外のもので、かつ未読状態の場合
             let hasUnread = false;
             if (msgKeys.length > 0) {
               const lastMsg = roomMsgs[msgKeys[msgKeys.length - 1]];
               const lastReadTime = Number(localStorage.getItem('LAST_READ_' + roomId) || 0);
-              // メッセージのタイムスタンプと比較（簡易的に最新メッセージが相手からのもので未読なら）
               if (lastMsg.name !== myName && lastMsg.rawTime > lastReadTime) {
                 hasUnread = true;
               }
@@ -673,8 +678,9 @@
             const div = document.createElement('div');
             div.className = 'user-item';
             div.innerHTML = `
-              <div style="display: flex; align-items: center; gap: 8px;">
-                <span>💬 ${u.name}</span>
+              <div style="display: flex; align-items: center; gap: 10px;">
+                ${statusDot}
+                <span>${u.name}</span>
                 ${hasUnread ? '<span class="unread-badge">! 未読</span>' : ''}
               </div>
               <span style="font-size: 11px; color: #0284c7;">チャットを開く →</span>
@@ -696,7 +702,6 @@
       document.getElementById('dmUserListLayout').style.display = 'none';
       document.getElementById('dmChatRoomLayout').style.display = 'flex';
       
-      // 開いた瞬間に既読時間を更新
       const roomId = getDmRoomId(myName, targetName);
       localStorage.setItem('LAST_READ_' + roomId, Date.now());
 
@@ -753,7 +758,6 @@
         rawTime: now,
         time: new Date(now).toLocaleTimeString('ja-JP', {hour: '2-digit', minute:'2-digit'})
       });
-      // 自分自身が送ったので既読時間も現在時刻に更新
       localStorage.setItem('LAST_READ_' + roomId, now);
       input.value = '';
     }
