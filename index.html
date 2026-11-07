@@ -4,7 +4,7 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <meta name="robots" content="noindex, nofollow">
-  <title>シークレット通信網 - 道下特設ポータル</title>
+  <title>道下通信網 - 道下特設ポータル</title>
   <!-- Firebase CDN -->
   <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-app-compat.js"></script>
   <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-database-compat.js"></script>
@@ -157,7 +157,7 @@
       border-color: #dc2626 !important;
     }
 
-    /* タブバー（要求通りの4つ） */
+    /* タブバー */
     .tab-bar {
       display: flex;
       background: #f1f5f9;
@@ -288,9 +288,14 @@
 
     .chat-img {
       max-width: 100%;
-      max-height: 200px;
+      max-height: 250px;
+      width: auto;
+      height: auto;
+      object-fit: contain;
       border-radius: 10px;
       cursor: pointer;
+      display: block;
+      margin-top: 2px;
     }
 
     .bubble-text {
@@ -299,7 +304,6 @@
       font-weight: 700;
     }
 
-    /* フッター（既読・返信・取消・リアクションを一括配置） */
     .bubble-footer {
       display: flex;
       flex-wrap: wrap;
@@ -328,7 +332,6 @@
     }
     .chat-row.mine .msg-action-btn { color: #e0f2fe; }
 
-    /* リアクション（同一行に並べる） */
     .reaction-bar {
       display: flex;
       gap: 3px;
@@ -375,7 +378,6 @@
       flex-shrink: 0;
     }
 
-    /* 入力エリア */
     .input-box-area {
       padding: 12px 16px;
       background: #ffffff;
@@ -426,7 +428,6 @@
       flex-shrink: 0;
     }
 
-    /* DMリスト */
     .dm-layout {
       display: flex;
       flex-direction: column;
@@ -470,7 +471,6 @@
     .status-indicator.online { background-color: #10b981; box-shadow: 0 0 6px #10b981; }
     .status-indicator.offline { background-color: #94a3b8; }
 
-    /* 設定タブ用スタイル */
     .settings-pane {
       padding: 20px;
       overflow-y: auto;
@@ -515,7 +515,7 @@
     <div class="modal-card">
       <div class="modal-title">📷 画像送信の確認</div>
       <div class="modal-desc">この画像を送信してもよろしいですか？</div>
-      <img id="imgPreviewTarget" style="max-width: 100%; max-height: 200px; border-radius: 12px; margin-bottom: 14px;">
+      <img id="imgPreviewTarget" style="max-width: 100%; max-height: 200px; border-radius: 12px; margin-bottom: 14px; object-fit: contain;">
       <div style="display: flex; gap: 8px;">
         <button class="btn-clean" style="flex:1; background: #64748b;" onclick="cancelImageSend()">キャンセル</button>
         <button class="btn-clean" style="flex:1;" onclick="confirmImageSend()">送信する</button>
@@ -538,7 +538,7 @@
       </div>
     </header>
 
-    <!-- タブバー（指定の4つ） -->
+    <!-- タブバー -->
     <div class="tab-bar">
       <div class="tab-item active" onclick="switchTab('channel')">💬 全体</div>
       <div class="tab-item" onclick="switchTab('dm')">
@@ -599,22 +599,21 @@
           <div style="display:flex; align-items:center; gap:12px;">
             <img id="settingsAvatarPreview" style="width:50px; height:50px; border-radius:50%; object-fit:cover; border:2px solid #0284c7;">
             <div>
-              <div style="font-size:12px; color:#64748b; font-weight:800;">アイコン画像URLを入力</div>
-              <input type="text" id="iconUrlInput" class="modal-input" placeholder="https://..." style="margin-bottom:0; text-align:left; font-size:12px;">
+              <div style="font-size:12px; color:#64748b; font-weight:800;">アルバムからアイコンを変更</div>
+              <input type="file" id="avatarFileInput" accept="image/*" style="display:none;" onchange="handleAvatarFileSelect(this)">
+              <button class="btn-clean" style="font-size:11px; margin-top:4px;" onclick="document.getElementById('avatarFileInput').click()">📁 アルバムを開く</button>
             </div>
           </div>
 
-          <div style="display:flex; gap:6px;">
-            <button class="btn-clean" style="flex:1; font-size:11px;" onclick="applyCustomIcon()">画像を移動・変更</button>
-            <button class="btn-clean" style="flex:1; background:#ef4444; font-size:11px;" onclick="resetToDefaultIcon()">画像を削除（初期化）</button>
+          <div style="display:flex; gap:6px; margin-top:4px;">
+            <button class="btn-clean" style="flex:1; background:#ef4444; font-size:11px;" onclick="resetToDefaultIcon()">初期アイコンに戻す</button>
           </div>
 
-          <!-- 初期アイコンパターン選択 -->
           <div style="border-top:1px solid #e2e8f0; padding-top:10px;">
-            <div style="font-size:11px; color:#64748b; font-weight:800; margin-bottom:6px;">初期アイコンプリセット</div>
+            <div style="font-size:11px; color:#64748b; font-weight:800; margin-bottom:6px;">初期アイコンプリセット（切り替え）</div>
             <div class="preset-btn-group">
-              <button class="btn-clean" style="flex:1; background:#0284c7; font-size:10.5px;" onclick="setPresetIcon(1)">パターン1 (ブルー)</button>
-              <button class="btn-clean" style="flex:1; background:#10b981; font-size:10.5px;" onclick="setPresetIcon(2)">パターン2 (グリーン)</button>
+              <button class="btn-clean" style="flex:1; background:#0284c7; font-size:10.5px;" onclick="setPresetIcon(1)">初期アイコン1</button>
+              <button class="btn-clean" style="flex:1; background:#10b981; font-size:10.5px;" onclick="setPresetIcon(2)">初期アイコン2</button>
             </div>
           </div>
         </div>
@@ -630,8 +629,6 @@
   </div>
 
   <script>
-    // --- 初期アイコンのURL定義（2パターン） ---
-    // [HTML内の設定欄]: ここに初期アイコンの画像URLを挿入・設定できます
     const DEFAULT_ICON_1 = "https://api.dicebear.com/7.x/bottts/svg?seed=Michishita1";
     const DEFAULT_ICON_2 = "https://api.dicebear.com/7.x/bottts/svg?seed=Michishita2";
 
@@ -656,14 +653,11 @@
     let pendingImageData = null;
     let pendingImageMode = null;
 
-    // --- ESCキー逃走機能 ---
+    // --- ESCキー逃走 ---
     window.addEventListener('keydown', (e) => {
-      if (e.key === 'Escape') {
-        triggerPanic();
-      }
+      if (e.key === 'Escape') triggerPanic();
     });
 
-    // --- 緊急逃走（別タブでClassroomを開く） ---
     function triggerPanic() {
       window.open("https://classroom.google.com", "_blank");
     }
@@ -703,33 +697,63 @@
 
     function showBrowserNotification(title, bodyText) {
       if (Notification.permission === "granted" && document.hidden) {
-        new Notification(title, { body: bodyText, icon: "https://cdn-icons-png.flaticon.com/512/3067/3067400.png" });
+        new Notification(title, { body: bodyText, icon: DEFAULT_ICON_1 });
       }
     }
 
     window.onload = function() {
       document.getElementById('soundToggleBtn').innerText = isSoundOn ? '🔊音ON' : '🔇ミュート';
       updateAvatarDisplays();
+      cleanupInactiveUsers();
       if (myName) {
         document.getElementById('nameModal').style.display = 'none';
         initApp();
       }
     };
 
+    // --- 7日間非アクティブアカウント自動削除機能 ---
+    function cleanupInactiveUsers() {
+      const SEVEN_DAYS_MS = 7 * 24 * 60 * 60 * 1000;
+      const now = Date.now();
+      db.ref('secret_users').once('value', (snap) => {
+        const users = snap.val() || {};
+        Object.entries(users).forEach(([userName, uData]) => {
+          if (uData.lastActive && (now - uData.lastActive > SEVEN_DAYS_MS)) {
+            db.ref('secret_users/' + userName).remove();
+          }
+        });
+      });
+    }
+
     function updateAvatarDisplays() {
       document.getElementById('headerUserAvatar').src = myIcon;
       document.getElementById('settingsAvatarPreview').src = myIcon;
-      document.getElementById('iconUrlInput').value = myIcon;
     }
 
+    // --- 名前チェック＆登録機能 ---
     function saveInitialName() {
       const input = document.getElementById('initialNameInput').value.trim();
       if (!input) return alert("名前を入力してください！");
-      playTapSound();
-      myName = input.substring(0, 10);
-      localStorage.setItem(STORAGE_NAME_KEY, myName);
-      document.getElementById('nameModal').style.display = 'none';
-      initApp();
+      const targetName = input.substring(0, 10);
+      
+      db.ref('secret_users/' + targetName).once('value', (snap) => {
+        const uData = snap.val();
+        const SEVEN_DAYS_MS = 7 * 24 * 60 * 60 * 1000;
+        
+        // アクティブなユーザーが存在する場合は重複不可
+        if (uData && uData.lastActive && (Date.now() - uData.lastActive <= SEVEN_DAYS_MS)) {
+          alert(`「${targetName}」は現在他の人が使用しています。別の名前を入力してください。`);
+          return;
+        }
+
+        if (confirm(`「${targetName}」は使用可能です！この名前に登録しますか？`)) {
+          playTapSound();
+          myName = targetName;
+          localStorage.setItem(STORAGE_NAME_KEY, myName);
+          document.getElementById('nameModal').style.display = 'none';
+          initApp();
+        }
+      });
     }
 
     function toggleScreenMode() {
@@ -780,15 +804,32 @@
       document.getElementById('view' + tabName.charAt(0).toUpperCase() + tabName.slice(1)).classList.add('active');
     }
 
-    // --- アイコン設定処理 ---
-    function applyCustomIcon() {
-      const url = document.getElementById('iconUrlInput').value.trim();
-      if (!url) return alert("URLを入力してください");
-      myIcon = url;
-      localStorage.setItem(STORAGE_ICON_KEY, myIcon);
-      updateAvatarDisplays();
-      registerUserPresence();
-      alert("アイコンを変更しました！");
+    function handleAvatarFileSelect(input) {
+      const file = input.files[0];
+      if (!file) return;
+      const reader = new FileReader();
+      reader.onload = function(e) {
+        const img = new Image();
+        img.onload = function() {
+          const canvas = document.createElement('canvas');
+          const MAX_SIZE = 150;
+          let width = img.width, height = img.height;
+          if (width > height) { if (width > MAX_SIZE) { height *= MAX_SIZE / width; width = MAX_SIZE; } }
+          else { if (height > MAX_SIZE) { width *= MAX_SIZE / height; height = MAX_SIZE; } }
+          canvas.width = width; canvas.height = height;
+          const ctx = canvas.getContext('2d');
+          ctx.drawImage(img, 0, 0, width, height);
+          
+          myIcon = canvas.toDataURL('image/jpeg', 0.8);
+          localStorage.setItem(STORAGE_ICON_KEY, myIcon);
+          updateAvatarDisplays();
+          registerUserPresence();
+          alert("アルバムからアイコンを変更しました！");
+        }
+        img.src = e.target.result;
+      }
+      reader.readAsDataURL(file);
+      input.value = '';
     }
 
     function resetToDefaultIcon() {
@@ -807,17 +848,36 @@
       alert(`初期アイコンパターン${num}に設定しました！`);
     }
 
+    // --- 名前変更（重複チェック＆確認ダイアログ追加） ---
     function updateNameFromSettings() {
       const newName = document.getElementById('settingNameInput').value.trim();
       if (!newName) return alert("名前を入力してください");
-      myName = newName.substring(0, 10);
-      localStorage.setItem(STORAGE_NAME_KEY, myName);
-      document.getElementById('headerUserTag').innerText = `道下: ${myName}`;
-      registerUserPresence();
-      alert("名前を変更しました！");
+      const targetName = newName.substring(0, 10);
+
+      if (targetName === myName) return alert("現在の名前と同じです。");
+
+      db.ref('secret_users/' + targetName).once('value', (snap) => {
+        const uData = snap.val();
+        const SEVEN_DAYS_MS = 7 * 24 * 60 * 60 * 1000;
+
+        if (uData && uData.lastActive && (Date.now() - uData.lastActive <= SEVEN_DAYS_MS)) {
+          alert(`「${targetName}」は現在他の人が使用しています。別の名前を入力してください。`);
+          return;
+        }
+
+        if (confirm(`「${targetName}」は使用可能です！名前を変更しますか？`)) {
+          // 旧アカウントデータ削除
+          db.ref('secret_users/' + myName).remove();
+          
+          myName = targetName;
+          localStorage.setItem(STORAGE_NAME_KEY, myName);
+          document.getElementById('headerUserTag').innerText = `道下: ${myName}`;
+          registerUserPresence();
+          alert(`名前を「${myName}」に変更しました！`);
+        }
+      });
     }
 
-    // --- 返信設定 ---
     function setReply(name, text) {
       playTapSound();
       replyingTo = { name, text };
@@ -835,7 +895,7 @@
       document.getElementById('dmReplyingBar').style.display = 'none';
     }
 
-    // --- リアクション処理 ---
+    // --- リアクション時の画面スクロール位置固定修正 ---
     function toggleReaction(path, msgKey, emoji) {
       playTapSound();
       const ref = db.ref(`${path}/${msgKey}/reactions/${emoji}`);
@@ -846,16 +906,21 @@
       });
     }
 
-    // --- 全体チャット同期 ---
     let lastChannelMsgCount = null;
     function initChannelSync() {
       const container = document.getElementById('channelMessages');
       db.ref('secret_channel').limitToLast(50).on('value', (snapshot) => {
+        const oldScrollTop = container.scrollTop;
+        const oldScrollHeight = container.scrollHeight;
+        const isNearBottom = (oldScrollHeight - oldScrollTop - container.clientHeight) < 100;
+
         container.innerHTML = '';
         const data = snapshot.val() || {};
         const entries = Object.entries(data);
 
-        if (lastChannelMsgCount !== null && entries.length > lastChannelMsgCount) {
+        const isNewMessageAdded = (lastChannelMsgCount !== null && entries.length > lastChannelMsgCount);
+
+        if (isNewMessageAdded) {
           const latest = entries[entries.length - 1][1];
           if (latest.name !== myName) {
             playReceiveSound();
@@ -867,7 +932,13 @@
         entries.forEach(([key, msg]) => {
           container.appendChild(createMessageElement(key, msg, 'secret_channel'));
         });
-        container.scrollTop = container.scrollHeight;
+
+        // リアクション等の更新時はスクロール位置を維持（新着メッセージ時のみ下へスクロール）
+        if (isNewMessageAdded || isNearBottom) {
+          container.scrollTop = container.scrollHeight;
+        } else {
+          container.scrollTop = oldScrollTop;
+        }
       });
     }
 
@@ -888,22 +959,18 @@
       cancelReply();
     }
 
-    // --- メッセージ要素生成 ＆ スライド返信ロジック ---
     function createMessageElement(key, msg, path) {
       const isMine = msg.name === myName;
       const row = document.createElement('div');
       row.className = `chat-row ${isMine ? 'mine' : ''}`;
 
-      // アタッチされたスライド（ドラッグ）返信機能
       let startX = 0;
       row.addEventListener('touchstart', (e) => { startX = e.touches[0].clientX; });
       row.addEventListener('touchmove', (e) => {
         const diff = e.touches[0].clientX - startX;
-        if (diff > 40) {
-          row.style.transform = `translateX(${Math.min(diff, 80)}px)`;
-        }
+        if (diff > 40) row.style.transform = `translateX(${Math.min(diff, 80)}px)`;
       });
-      row.addEventListener('touchend', (e) => {
+      row.addEventListener('touchend', () => {
         if (row.style.transform.includes('px')) {
           row.style.transform = 'translateX(0px)';
           setReply(msg.name, msg.text || '画像');
@@ -925,7 +992,6 @@
         html += `<div class="bubble-text">${escapeHtml(msg.text)}</div>`;
       }
 
-      // フッター（既読・返信・取消・リアクションを横一列に配置）
       const reactions = msg.reactions || {};
       const emojis = ['👍', '🔥', '草', '❤️'];
       
@@ -936,7 +1002,6 @@
         html += `<button class="msg-action-btn" onclick="deleteMsg('${path}', '${key}')">🗑️取消</button>`;
       }
       
-      // 自分のメッセージにはリアクション不可
       if (!isMine) {
         html += `<div class="reaction-bar">`;
         emojis.forEach(e => {
@@ -962,7 +1027,6 @@
       }
     }
 
-    // --- DM同期 ---
     function initUserListSync() {
       const container = document.getElementById('onlineUserListContainer');
       const tabUnreadDot = document.getElementById('tabUnreadDot');
@@ -1035,11 +1099,17 @@
       const container = document.getElementById('dmMessagesContainer');
 
       db.ref('secret_dms/' + roomId).limitToLast(50).on('value', (snapshot) => {
+        const oldScrollTop = container.scrollTop;
+        const oldScrollHeight = container.scrollHeight;
+        const isNearBottom = (oldScrollHeight - oldScrollTop - container.clientHeight) < 100;
+
         container.innerHTML = '';
         const data = snapshot.val() || {};
         const entries = Object.entries(data);
 
-        if (lastDmMsgCount[roomId] !== undefined && entries.length > lastDmMsgCount[roomId]) {
+        const isNewMessageAdded = (lastDmMsgCount[roomId] !== undefined && entries.length > lastDmMsgCount[roomId]);
+
+        if (isNewMessageAdded) {
           const latest = entries[entries.length - 1][1];
           if (latest.name !== myName) {
             playReceiveSound();
@@ -1051,7 +1121,12 @@
         entries.forEach(([key, msg]) => {
           container.appendChild(createMessageElement(key, msg, `secret_dms/${roomId}`));
         });
-        container.scrollTop = container.scrollHeight;
+
+        if (isNewMessageAdded || isNearBottom) {
+          container.scrollTop = container.scrollHeight;
+        } else {
+          container.scrollTop = oldScrollTop;
+        }
       });
     }
 
@@ -1077,7 +1152,6 @@
       cancelReply();
     }
 
-    // --- 画像選択と誤送信防止プレビュー ---
     function handleFileSelect(inputElement, mode) {
       const file = inputElement.files[0];
       if (!file) return;
@@ -1087,7 +1161,7 @@
         const img = new Image();
         img.onload = function() {
           const canvas = document.createElement('canvas');
-          const MAX_WIDTH = 450;
+          const MAX_WIDTH = 500;
           let width = img.width, height = img.height;
           if (width > MAX_WIDTH) { height *= MAX_WIDTH / width; width = MAX_WIDTH; }
           canvas.width = width; canvas.height = height;
