@@ -208,6 +208,7 @@
       max-width: 80%;
       word-break: break-all;
       box-shadow: 0 2px 6px rgba(0,0,0,0.03);
+      position: relative;
     }
     .chat-bubble.mine {
       background: linear-gradient(135deg, #0284c7 0%, #0369a1 100%);
@@ -222,6 +223,7 @@
       font-weight: 800;
     }
     .chat-bubble.mine .bubble-name { color: #bae6fd; text-align: right; }
+    
     .chat-img {
       max-width: 100%;
       max-height: 200px;
@@ -229,6 +231,21 @@
       margin-top: 6px;
       cursor: pointer;
     }
+
+    /* メッセージ取り消しボタン */
+    .btn-delete-msg {
+      background: none;
+      border: none;
+      color: #cbd5e1;
+      font-size: 10px;
+      font-weight: 800;
+      cursor: pointer;
+      margin-top: 4px;
+      display: block;
+      text-align: right;
+    }
+    .chat-bubble.mine .btn-delete-msg { color: #e0f2fe; }
+    .btn-delete-msg:hover { text-decoration: underline; }
 
     /* 入力エリア */
     .input-box-area {
@@ -307,8 +324,26 @@
       cursor: pointer;
       box-shadow: 0 2px 6px rgba(0,0,0,0.03);
       transition: transform 0.1s;
+      position: relative;
     }
     .user-item:hover { transform: translateY(-2px); border-color: #0284c7; }
+
+    /* 未読バッジ（赤点！） */
+    .unread-badge {
+      background: #ef4444;
+      color: #ffffff;
+      font-size: 10.5px;
+      font-weight: 900;
+      padding: 2px 8px;
+      border-radius: 10px;
+      box-shadow: 0 2px 6px rgba(239, 68, 68, 0.4);
+      animation: pulseBadge 1.2s infinite;
+    }
+    @keyframes pulseBadge {
+      0% { transform: scale(1); }
+      50% { transform: scale(1.1); }
+      100% { transform: scale(1); }
+    }
 
     /* --- 通話ビュー --- */
     .call-pane {
@@ -502,7 +537,6 @@
         alert("名前を入力してください！");
         return;
       }
-      // 古いデータを消して新しい名前で登録し直す
       db.ref('secret_users/' + myName).remove();
       myName = newName.substring(0, 10);
       localStorage.setItem(STORAGE_NAME_KEY, myName);
@@ -565,7 +599,7 @@
       db.ref('secret_channel').limitToLast(50).on('value', (snapshot) => {
         container.innerHTML = '';
         const data = snapshot.val() || {};
-        Object.values(data).forEach(msg => {
+        Object.entries(data).forEach(([key, msg]) => {
           const div = document.createElement('div');
           const isMine = msg.name === myName;
           div.className = `chat-bubble ${isMine ? 'mine' : ''}`;
@@ -575,6 +609,9 @@
             html += `<img src="${msg.data}" class="chat-img" onclick="window.open('${msg.data}')">`;
           } else {
             html += `<div>${escapeHtml(msg.text)}</div>`;
+          }
+          if (isMine) {
+            html += `<button class="btn-delete-msg" onclick="deleteChannelMsg('${key}')">🗑️ 取り消し</button>`;
           }
           div.innerHTML = html;
           container.appendChild(div);
@@ -597,19 +634,54 @@
       input.value = '';
     }
 
-    // --- 個人チャット (DM) ---
+    function deleteChannelMsg(msgKey) {
+      if (confirm("このメッセージを取り消しますか？")) {
+        db.ref('secret_channel/' + msgKey).remove();
+      }
+    }
+
+    // --- 個人チャット (DM ＆ 未読バッジ機能) ---
     function initUserListSync() {
       const container = document.getElementById('onlineUserListContainer');
-      db.ref('secret_users').on('value', (snapshot) => {
-        container.innerHTML = '';
-        const users = snapshot.val() || {};
-        Object.values(users).forEach(u => {
-          if (u.name === myName) return;
-          const div = document.createElement('div');
-          div.className = 'user-item';
-          div.innerHTML = `<span>💬 ${u.name}</span> <span style="font-size: 11px; color: #0284c7;">チャットを開く →</span>`;
-          div.onclick = () => openDmChat(u.name);
-          container.appendChild(div);
+      
+      db.ref('secret_users').on('value', (userSnap) => {
+        const users = userSnap.val() || {};
+        
+        // 各DMの最新メッセージ状況も一緒に監視
+        db.ref('secret_dms').on('value', (dmSnap) => {
+          const allDms = dmSnap.val() || {};
+          container.innerHTML = '';
+
+          Object.values(users).forEach(u => {
+            if (u.name === myName) return;
+
+            const roomId = getDmRoomId(myName, u.name);
+            const roomMsgs = allDms[roomId] || {};
+            const msgKeys = Object.keys(roomMsgs);
+            
+            // 未読判定：最後のメッセージが自分以外のもので、かつ未読状態の場合
+            let hasUnread = false;
+            if (msgKeys.length > 0) {
+              const lastMsg = roomMsgs[msgKeys[msgKeys.length - 1]];
+              const lastReadTime = Number(localStorage.getItem('LAST_READ_' + roomId) || 0);
+              // メッセージのタイムスタンプと比較（簡易的に最新メッセージが相手からのもので未読なら）
+              if (lastMsg.name !== myName && lastMsg.rawTime > lastReadTime) {
+                hasUnread = true;
+              }
+            }
+
+            const div = document.createElement('div');
+            div.className = 'user-item';
+            div.innerHTML = `
+              <div style="display: flex; align-items: center; gap: 8px;">
+                <span>💬 ${u.name}</span>
+                ${hasUnread ? '<span class="unread-badge">! 未読</span>' : ''}
+              </div>
+              <span style="font-size: 11px; color: #0284c7;">チャットを開く →</span>
+            `;
+            div.onclick = () => openDmChat(u.name);
+            container.appendChild(div);
+          });
         });
       });
     }
@@ -623,6 +695,11 @@
       document.getElementById('activeDmTitle').innerText = `${targetName} とのDM`;
       document.getElementById('dmUserListLayout').style.display = 'none';
       document.getElementById('dmChatRoomLayout').style.display = 'flex';
+      
+      // 開いた瞬間に既読時間を更新
+      const roomId = getDmRoomId(myName, targetName);
+      localStorage.setItem('LAST_READ_' + roomId, Date.now());
+
       initDmSync();
     }
 
@@ -640,7 +717,7 @@
       db.ref('secret_dms/' + roomId).limitToLast(50).on('value', (snapshot) => {
         container.innerHTML = '';
         const data = snapshot.val() || {};
-        Object.values(data).forEach(msg => {
+        Object.entries(data).forEach(([key, msg]) => {
           const div = document.createElement('div');
           const isMine = msg.name === myName;
           div.className = `chat-bubble ${isMine ? 'mine' : ''}`;
@@ -650,6 +727,9 @@
             html += `<img src="${msg.data}" class="chat-img" onclick="window.open('${msg.data}')">`;
           } else {
             html += `<div>${escapeHtml(msg.text)}</div>`;
+          }
+          if (isMine) {
+            html += `<button class="btn-delete-msg" onclick="deleteDmMsg('${roomId}', '${key}')">🗑️ 取り消し</button>`;
           }
           div.innerHTML = html;
           container.appendChild(div);
@@ -665,13 +745,23 @@
       if (!text) return;
 
       const roomId = getDmRoomId(myName, currentActiveDmUser);
+      const now = Date.now();
       db.ref('secret_dms/' + roomId).push({
         name: myName,
         text: text,
         type: 'text',
-        time: new Date().toLocaleTimeString('ja-JP', {hour: '2-digit', minute:'2-digit'})
+        rawTime: now,
+        time: new Date(now).toLocaleTimeString('ja-JP', {hour: '2-digit', minute:'2-digit'})
       });
+      // 自分自身が送ったので既読時間も現在時刻に更新
+      localStorage.setItem('LAST_READ_' + roomId, now);
       input.value = '';
+    }
+
+    function deleteDmMsg(roomId, msgKey) {
+      if (confirm("このメッセージを取り消しますか？")) {
+        db.ref('secret_dms/' + roomId + '/' + msgKey).remove();
+      }
     }
 
     // --- 写真送信機能 ---
@@ -697,11 +787,13 @@
           ctx.drawImage(img, 0, 0, width, height);
           const dataUrl = canvas.toDataURL('image/jpeg', 0.7);
 
+          const now = Date.now();
           const payload = {
             name: myName,
             data: dataUrl,
             type: 'image',
-            time: new Date().toLocaleTimeString('ja-JP', {hour: '2-digit', minute:'2-digit'})
+            rawTime: now,
+            time: new Date(now).toLocaleTimeString('ja-JP', {hour: '2-digit', minute:'2-digit'})
           };
 
           if (mode === 'channel') {
@@ -709,6 +801,7 @@
           } else if (mode === 'dm' && currentActiveDmUser) {
             const roomId = getDmRoomId(myName, currentActiveDmUser);
             db.ref('secret_dms/' + roomId).push(payload);
+            localStorage.setItem('LAST_READ_' + roomId, now);
           }
         }
         img.src = e.target.result;
@@ -717,7 +810,7 @@
       inputElement.value = '';
     }
 
-    // --- PeerJS 通話機能（エラー原因詳細化） ---
+    // --- PeerJS 通話機能 ---
     let peer = null;
     let localStream = null;
     let currentCall = null;
@@ -735,7 +828,7 @@
               document.getElementById('remoteVideo').srcObject = stream;
             });
           } catch (e) {
-            alert("通話応答エラー: " + e.message + "\n(学校の端末やブラウザ権限がブロックしている可能性があります)");
+            alert("通話応答エラー: " + e.message);
           }
         } else {
           call.close();
@@ -760,7 +853,7 @@
         });
         alert("呼び出し中...");
       } catch (e) {
-        alert("マイク・カメラの取得に失敗しました: " + e.message + "\n(※学校のChromebookではハードウェアまたはポリシー制限で無効化されている場合があります)");
+        alert("マイク・カメラの取得に失敗しました: " + e.message);
       }
     }
 
