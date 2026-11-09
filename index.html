@@ -1491,17 +1491,6 @@
       return escaped.replace(urlRegex, '<a href="$1" target="_blank" onclick="event.stopPropagation()">$1</a>');
     }
 
-    function markAsRead(path, key, msg) {
-      const activeSender = impersonatedName || myName;
-      if (!msg || msg.name === activeSender || msg.type === 'system') return;
-      
-      db.ref(`${path}/${key}/reads/${activeSender}`).once('value', (snap) => {
-        if (!snap.exists()) {
-          db.ref(`${path}/${key}/reads/${activeSender}`).set(true);
-        }
-      });
-    }
-
     function createMessageElement(key, msg, path) {
       const activeSender = impersonatedName || myName;
       const isMine = msg.name === activeSender;
@@ -1547,20 +1536,6 @@
         html += `<div class="reaction-display-bar">${reactionHtml}</div>`;
       }
 
-      let readStatusText = '';
-      const reads = msg.reads || {};
-      const readCount = Object.keys(reads).length;
-
-      if (isMine) {
-        if (activeChatType === 'dm') {
-          readStatusText = readCount > 0 ? '既読' : '送信済み';
-        } else {
-          readStatusText = readCount > 0 ? `既読 ${readCount}` : '送信済み';
-        }
-      } else {
-        markAsRead(path, key, msg);
-      }
-
       html += `<div class="bubble-footer">`;
       html += `<div class="msg-actions">`;
       html += `<button class="msg-action-btn" onclick="openMsgActionModal('${path}', '${key}', '${msg.name}', '${(msg.text || '').replace(/'/g, "\\'")}', ${isMine})">…</button>`;
@@ -1572,7 +1547,7 @@
       }
       
       html += `</div>`;
-      html += `<div class="read-counter">${readStatusText}</div>`;
+      html += `<div class="read-counter">${isMine ? '送信済み' : ''}</div>`;
       html += `</div></div>`;
 
       row.innerHTML = html;
