@@ -627,19 +627,23 @@
   </div>
 
   <div id="msgActionModal" class="custom-modal" style="display: none; background: rgba(15, 23, 42, 0.4);" onclick="closeMsgActionModal()">
-    <div class="modal-card" style="max-width: 260px; padding: 16px;" onclick="event.stopPropagation()">
-      <div class="modal-title" style="font-size: 14px; margin-bottom: 12px;">メッセージ操作</div>
+    <div class="modal-card" style="max-width: 280px; padding: 16px;" onclick="event.stopPropagation()">
+      <div class="modal-title" style="font-size: 14px; margin-bottom: 10px;">メッセージ操作</div>
       <div style="display: flex; flex-direction: column; gap: 8px;">
-        <button class="btn-clean" style="background: #0284c7; height: 38px; font-size: 12px;" onclick="actionCopyMsg()">📋 テキストをコピー</button>
-        <button class="btn-clean" style="background: #10b981; height: 38px; font-size: 12px;" onclick="actionReplyMsg()">↩️ 返信</button>
-        <div style="font-size: 11px; font-weight: 800; color: #64748b; margin-top: 4px;">リアクション:</div>
-        <div style="display: flex; justify-content: center; gap: 6px;">
-          <button class="reaction-pill" style="padding: 6px 12px; font-size: 14px; cursor:pointer;" onclick="actionReaction('👍')">👍</button>
-          <button class="reaction-pill" style="padding: 6px 12px; font-size: 14px; cursor:pointer;" onclick="actionReaction('🔥')">🔥</button>
-          <button class="reaction-pill" style="padding: 6px 12px; font-size: 14px; cursor:pointer;" onclick="actionReaction('草')">草</button>
-          <button class="reaction-pill" style="padding: 6px 12px; font-size: 14px; cursor:pointer;" onclick="actionReaction('❤️')">❤️</button>
+        <button class="btn-clean" style="background: #0284c7; height: 36px; font-size: 12px;" onclick="actionCopyMsg()">📋 テキストをコピー</button>
+        <button class="btn-clean" style="background: #10b981; height: 36px; font-size: 12px;" onclick="actionReplyMsg()">↩️ 返信</button>
+        <div style="font-size: 11px; font-weight: 800; color: #64748b; margin-top: 2px;">リアクション (8種類):</div>
+        <div style="display: grid; grid-template-columns: repeat(4, 1fr); gap: 4px;">
+          <button class="reaction-pill" style="padding: 6px 0; justify-content: center; font-size: 14px; cursor:pointer;" onclick="actionReaction('👍')">👍</button>
+          <button class="reaction-pill" style="padding: 6px 0; justify-content: center; font-size: 14px; cursor:pointer;" onclick="actionReaction('🔥')">🔥</button>
+          <button class="reaction-pill" style="padding: 6px 0; justify-content: center; font-size: 14px; cursor:pointer;" onclick="actionReaction('草')">草</button>
+          <button class="reaction-pill" style="padding: 6px 0; justify-content: center; font-size: 14px; cursor:pointer;" onclick="actionReaction('❤️')">❤️</button>
+          <button class="reaction-pill" style="padding: 6px 0; justify-content: center; font-size: 14px; cursor:pointer;" onclick="actionReaction('✨')">✨</button>
+          <button class="reaction-pill" style="padding: 6px 0; justify-content: center; font-size: 14px; cursor:pointer;" onclick="actionReaction('👏')">👏</button>
+          <button class="reaction-pill" style="padding: 6px 0; justify-content: center; font-size: 14px; cursor:pointer;" onclick="actionReaction('😭')">😭</button>
+          <button class="reaction-pill" style="padding: 6px 0; justify-content: center; font-size: 14px; cursor:pointer;" onclick="actionReaction('🤔')">🤔</button>
         </div>
-        <button class="btn-clean" style="background: #64748b; height: 34px; font-size: 11px; margin-top: 8px;" onclick="closeMsgActionModal()">閉じる</button>
+        <button class="btn-clean" style="background: #64748b; height: 32px; font-size: 11px; margin-top: 4px;" onclick="closeMsgActionModal()">閉じる</button>
       </div>
     </div>
   </div>
@@ -738,6 +742,12 @@
           <div class="setting-title">✏️ 名前変更</div>
           <input type="text" id="settingNameInput" class="modal-input" maxlength="10">
           <button class="btn-clean" onclick="updateNameFromSettings()">名前を保存</button>
+        </div>
+
+        <div class="setting-card" style="border-color: #ef4444;">
+          <div class="setting-title" style="color: #ef4444;">⚠️ アカウント削除</div>
+          <div style="font-size: 11.5px; color: #475569; font-weight: 700;">この操作を行うと、あなたのデータが完全に削除され、初期登録画面に戻ります。</div>
+          <button class="btn-clean" style="background: #ef4444; font-size: 11px; margin-top: 4px;" onclick="deleteMyAccount()">アカウントを完全に削除する</button>
         </div>
       </div>
     </div>
@@ -891,6 +901,28 @@
       });
     }
 
+    // --- 自分のアカウントを完全に削除する機能 ---
+    function deleteMyAccount() {
+      const activeName = impersonatedName || myName;
+      if (!confirm(`本当にアカウント「${activeName}」を完全に削除しますか？\n（この操作は元に戻せません）`)) return;
+
+      db.ref('secret_users/' + activeName).remove().then(() => {
+        localStorage.removeItem(STORAGE_NAME_KEY);
+        myName = "";
+        impersonatedName = null;
+        impersonatedIcon = null;
+        if (window.presenceInterval) clearInterval(window.presenceInterval);
+
+        document.getElementById('groupSettingsModal').style.display = 'none';
+        document.getElementById('msgActionModal').style.display = 'none';
+        document.getElementById('banScreen').style.display = 'none';
+        document.getElementById('nameModal').style.display = 'flex';
+        document.getElementById('initialNameInput').value = '';
+
+        alert("アカウントを削除しました。初期登録画面に戻ります。");
+      });
+    }
+
     function quitAdminMode() {
       isAdmin = false;
       impersonatedName = null;
@@ -1020,7 +1052,7 @@
     }
 
     function deleteAccount(targetName) {
-      if (!confirm(`「${targetName}」のアカウントを削除しますか？`)) return;
+      if (!confirm(`「${targetName}」のアカウントを完全に削除しますか？`)) return;
       db.ref('secret_users/' + targetName).remove();
       alert(`「${targetName}」のアカウントを削除しました。`);
     }
@@ -1435,7 +1467,7 @@
               <div style="width:32px; height:32px; border-radius:50%; background:#0284c7; color:#fff; display:flex; align-items:center; justify-content:center; font-weight:900; font-size:14px;">👥</div>
               <span>${gData.name} <span style="font-size:11px; color:#64748b; font-weight:700;">(${memberCount}人)</span></span>
             </div>
-            <span style="font-size: 11px; color: #0284c7;">チャットを開く →</span>
+            <span style="font-size: 11px; color: #0284c7;">チャップを開く →</span>
           `;
           div.onclick = () => {
             switchTab('dm');
@@ -1520,7 +1552,7 @@
       }
 
       const reactions = msg.reactions || {};
-      const emojis = ['👍', '🔥', '草', '❤️'];
+      const emojis = ['👍', '🔥', '草', '❤️', '✨', '👏', '😭', '🤔'];
       let reactionHtml = '';
       
       emojis.forEach(e => {
