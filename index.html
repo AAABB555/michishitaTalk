@@ -590,18 +590,30 @@
       <div id="groupMemberListContainer" style="max-height: 150px; overflow-y: auto; border: 1.5px solid #e2e8f0; border-radius: 12px; padding: 8px; margin-bottom: 14px; display: flex; flex-direction: column; gap: 6px; text-align: left;"></div>
       <div style="display: flex; gap: 8px;">
         <button class="btn-clean" style="flex:1; background: #64748b;" onclick="closeGroupModal()">キャンセル</button>
-        <button class="btn-clean" style="flex:1;" onclick="confirmCreateGroup()">作成する</button>
+        <button class="btn-clean" style="flex:1;" onclick="confirmCreateGroup()">作成者として作成</button>
       </div>
     </div>
   </div>
 
-  <!-- グループ設定・管理用モーダル（追放・削除・退会用） -->
+  <!-- 作成者権限の譲渡選択モーダル（作成者が退会する時に使用） -->
+  <div id="transferOwnerModal" class="custom-modal" style="display: none;">
+    <div class="modal-card" style="max-width: 360px; text-align: left;">
+      <div class="modal-title" style="font-size: 16px; margin-bottom: 4px;">👑 作成者権限の譲渡</div>
+      <div style="font-size: 12px; color: #64748b; font-weight: 800; margin-bottom: 12px;">あなたが退会するためには、次の作成者を誰にするか選択する必要があります。</div>
+      <div id="transferCandidateList" style="max-height: 140px; overflow-y: auto; border: 1.5px solid #e2e8f0; border-radius: 10px; padding: 6px; margin-bottom: 14px; display: flex; flex-direction: column; gap: 6px;"></div>
+      <div style="display: flex; gap: 8px;">
+        <button class="btn-clean" style="flex:1; background: #64748b; height: 36px; font-size: 11px;" onclick="document.getElementById('transferOwnerModal').style.display='none'">キャンセル</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- グループ設定・管理用モーダル -->
   <div id="groupSettingsModal" class="custom-modal" style="display: none;" onclick="closeGroupSettingsModal()">
     <div class="modal-card" style="max-width: 360px; text-align: left;" onclick="event.stopPropagation()">
       <div class="modal-title" id="groupSettingsTitle" style="font-size: 16px; margin-bottom: 4px;">グループ管理</div>
       <div id="groupSettingsSubtitle" style="font-size: 11px; color: #64748b; font-weight: 800; margin-bottom: 12px;"></div>
       
-      <div style="font-size: 12px; font-weight: 900; color: #0284c7; margin-bottom: 6px;">メンバー一覧 (追放可能)</div>
+      <div style="font-size: 12px; font-weight: 900; color: #0284c7; margin-bottom: 6px;">メンバー一覧</div>
       <div id="groupSettingsMemberList" style="max-height: 140px; overflow-y: auto; border: 1.5px solid #e2e8f0; border-radius: 10px; padding: 6px; margin-bottom: 14px; display: flex; flex-direction: column; gap: 6px;"></div>
 
       <div style="display: flex; flex-direction: column; gap: 8px;">
@@ -612,7 +624,7 @@
     </div>
   </div>
 
-  <!-- メッセージアクションメニューモーダル（「…」ボタン用：コピー・返信・リアクション完結） -->
+  <!-- メッセージアクションメニューモーダル（「…」ボタン用） -->
   <div id="msgActionModal" class="custom-modal" style="display: none; background: rgba(15, 23, 42, 0.4);" onclick="closeMsgActionModal()">
     <div class="modal-card" style="max-width: 260px; padding: 16px;" onclick="event.stopPropagation()">
       <div class="modal-title" style="font-size: 14px; margin-bottom: 12px;">メッセージ操作</div>
@@ -1021,13 +1033,9 @@
       alert(`「${targetName}」のBANを解除しました！`);
     }
 
-    // --- 管理者による全員同期の炎上消去 ---
     function adminBurnMessage(path, msgKey) {
       if (!isAdmin) return;
       if (!confirm("管理者権限でこのメッセージを炎上消去しますか？")) return;
-      
-      // 全員同期させるために Firebase 側へ消去リクエスト信号（あるいは直接remove）を送る
-      // 今回は削除フラグまたは直接removeで全クライアントのリアルタイムリスナーが反応して消える
       db.ref(`${path}/${msgKey}`).remove();
     }
 
@@ -1188,7 +1196,7 @@
       const groupId = 'group_' + Date.now();
       const groupData = {
         name: groupName,
-        creator: activeSender, // 作成者を記録
+        creator: activeSender,
         members: members,
         createdAt: Date.now()
       };
@@ -1199,7 +1207,7 @@
       });
     }
 
-    // --- グループ設定・管理モーダル（追放・削除・退会） ---
+    // --- グループ設定・管理モーダル ---
     function openGroupSettingsModalIfGroup() {
       if (activeChatType !== 'group' || !currentGroupId) return;
       
@@ -1223,20 +1231,18 @@
             const div = document.createElement('div');
             div.style.cssText = "display:flex; justify-content:space-between; align-items:center; background:#f8fafc; padding:6px 10px; border-radius:8px; font-size:11.5px; font-weight:800;";
             
-            let btnHtml = '';
-            // 作成者または管理者なら自分以外のメンバーを追放可能
-            if (canManage && member !== activeSender) {
-              btnHtml = `<button class="btn-clean" style="height:26px; padding:0 8px; font-size:10px; background:#ef4444;" onclick="actionKickMember('${member}')">追放</button>`;
-            } else if (member === gData.creator) {
-              btnHtml = `<span style="font-size:10px; color:#0284c7;">作成者</span>`;
+            let badgeOrBtn = '';
+            if (member === gData.creator) {
+              badgeOrBtn = `<span style="font-size:10px; color:#0284c7; font-weight:900;">👑 作成者</span>`;
+            } else if (canManage) {
+              badgeOrBtn = `<button class="btn-clean" style="height:26px; padding:0 8px; font-size:10px; background:#ef4444;" onclick="actionKickMember('${member}')">追放</button>`;
             }
 
-            div.innerHTML = `<span>👤 ${member}</span>${btnHtml}`;
+            div.innerHTML = `<span>👤 ${member}</span>${badgeOrBtn}`;
             memberListContainer.appendChild(div);
           });
         }
 
-        // 削除ボタンの表示制御（作成者 or 管理者のみグループ自体を削除可能）
         const deleteBtn = document.getElementById('groupDeleteBtn');
         if (canManage) {
           deleteBtn.style.display = 'block';
@@ -1264,24 +1270,75 @@
       });
     }
 
+    // --- 自主退会（作成者の場合は権限譲渡が必須） ---
     function actionLeaveGroup() {
+      if (!currentGroupId || !currentGroupData) return;
+      const activeSender = impersonatedName || myName;
+      const isCreator = (currentGroupData.creator === activeSender);
+      const otherMembers = currentGroupData.members.filter(m => m !== activeSender);
+
+      // メンバーが自分1人だけの場合、または誰も残らない場合はそのままグループ削除して退会
+      if (otherMembers.length === 0) {
+        if (!confirm("このグループから自主退会しますか？（最後のメンバーのためグループは消去されます）")) return;
+        db.ref('secret_groups/' + currentGroupId).remove();
+        db.ref('secret_group_messages/' + currentGroupId).remove();
+        closeGroupSettingsModal();
+        backToUserList();
+        alert("グループから退会しました。");
+        return;
+      }
+
+      // 作成者の場合、他のメンバーに権限を譲渡しなければ退会できないようにする
+      if (isCreator) {
+        closeGroupSettingsModal();
+        openTransferOwnerModal(otherMembers);
+        return;
+      }
+
+      // 一般メンバーの退会処理
       if (!confirm("このグループから自主退会しますか？")) return;
+      db.ref(`secret_groups/${currentGroupId}/members`).set(otherMembers).then(() => {
+        closeGroupSettingsModal();
+        backToUserList();
+        alert("グループから退会しました。");
+      });
+    }
+
+    // --- 作成者権限の譲渡候補選択モーダルを開く ---
+    function openTransferOwnerModal(candidates) {
+      const container = document.getElementById('transferCandidateList');
+      container.innerHTML = '';
+
+      candidates.forEach(member => {
+        const div = document.createElement('div');
+        div.style.cssText = "display:flex; justify-content:space-between; align-items:center; background:#f8fafc; padding:8px 12px; border-radius:8px; font-size:12px; font-weight:800;";
+        div.innerHTML = `
+          <span>👤 ${member}</span>
+          <button class="btn-clean" style="height:28px; padding:0 10px; font-size:11px;" onclick="confirmTransferAndLeave('${member}')">権限を譲渡して退会</button>
+        `;
+        container.appendChild(div);
+      });
+
+      document.getElementById('transferOwnerModal').style.display = 'flex';
+    }
+
+    // --- 権限を譲渡して自分は退会する ---
+    function confirmTransferAndLeave(newCreator) {
+      if (!confirm(`「${newCreator}」を作成者に任命し、自分はグループを退会しますか？`)) return;
       if (!currentGroupId || !currentGroupData) return;
 
       const activeSender = impersonatedName || myName;
-      const newMembers = currentGroupData.members.filter(m => m !== activeSender);
+      const newMembers = currentGroupData.members.nativeFilter ? null : currentGroupData.members.filter(m => m !== activeSender);
 
-      if (newMembers.length === 0) {
-        // メンバーがいなくなったらグループ自体を削除
-        db.ref('secret_groups/' + currentGroupId).remove();
-        db.ref('secret_group_messages/' + currentGroupId).remove();
-      } else {
-        db.ref(`secret_groups/${currentGroupId}/members`).set(newMembers);
-      }
-
-      closeGroupSettingsModal();
-      backToUserList();
-      alert("グループから退会しました。");
+      // 作成者を変更し、メンバーから自分を外す更新を同時に行う
+      db.ref(`secret_groups/${currentGroupId}`).update({
+        creator: newCreator,
+        members: newMembers
+      }).then(() => {
+        document.getElementById('transferOwnerModal').style.display = 'none';
+        backToUserList();
+        alert(`「${newCreator}」を作成者に任命し、グループから退会しました。`);
+      });
     }
 
     function actionDeleteGroup() {
@@ -1333,7 +1390,7 @@
       });
     }
 
-    // --- メッセージアクションメニュー (「…」ボタン用：コピー・返信・リアクション完結) ---
+    // --- メッセージアクションメニュー (「…」ボタン用) ---
     function openMsgActionModal(path, key, msgName, msgText, isMine) {
       activeMsgContext = { path, key, msgName, msgText, isMine };
       document.getElementById('msgActionModal').style.display = 'flex';
@@ -1396,7 +1453,6 @@
         html += `<div class="bubble-text">${escapeAndLinkify(msg.text)}</div>`;
       }
 
-      // リアクションが谁かによって押された場合、メッセージの下に表示
       const reactions = msg.reactions || {};
       const emojis = ['👍', '🔥', '草', '❤️'];
       let reactionHtml = '';
@@ -1416,13 +1472,11 @@
 
       html += `<div class="bubble-footer">`;
       html += `<div class="msg-actions">`;
-      // 「…」ボタンでコピー・返信・リアクションすべてを完結
       html += `<button class="msg-action-btn" onclick="openMsgActionModal('${path}', '${key}', '${msg.name}', '${(msg.text || '').replace(/'/g, "\\'")}', ${isMine})">…</button>`;
       
       if (isMine) {
         html += `<button class="msg-action-btn" onclick="deleteMsg('${path}', '${key}')">🗑️取り消し</button>`;
       } else if (isAdmin) {
-        // 管理者による全員同期の炎上消去ボタン
         html += `<button class="msg-action-btn" style="color:#ef4444; border-color:#ef4444;" onclick="adminBurnMessage('${path}', '${key}')">🔥消去</button>`;
       }
       
@@ -1524,17 +1578,14 @@
       currentGroupId = groupId;
       currentActiveDmUser = null;
       
-      // グループ名の後ろに人数を表示
       document.getElementById('activeDmTitle').innerText = `👥 ${groupName} (${memberCount || 1}人) ⚙️`;
       document.getElementById('dmUserListLayout').style.display = 'none';
       document.getElementById('dmChatRoomLayout').style.display = 'flex';
 
-      // リアルタイムで人数が変わるのを監視してヘッダーを更新
       db.ref(`secret_groups/${groupId}`).on('value', (snap) => {
         const gData = snap.val();
         if (gData && gData.members) {
           if (!gData.members.includes(impersonatedName || myName)) {
-            // もし自分が追放された場合、自動的にチャットから追い出される
             alert("このグループから除外されました。");
             backToUserList();
             return;
