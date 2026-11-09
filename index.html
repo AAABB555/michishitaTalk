@@ -5,10 +5,8 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <meta name="robots" content="noindex, nofollow">
   <title>道下通信網 - 道下特設ポータル</title>
-  <!-- Firebase CDN -->
   <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-app-compat.js"></script>
   <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-database-compat.js"></script>
-  <!-- PeerJS CDN -->
   <script src="https://unpkg.com/peerjs@1.4.7/dist/peerjs.min.js"></script>
   <style>
     * {
@@ -256,16 +254,6 @@
       border-color: #0284c7;
     }
 
-    .chat-bubble.burning {
-      animation: burnEffect 0.8s forwards;
-    }
-    @keyframes burnEffect {
-      0% { transform: scale(1); filter: brightness(1); background: #fff; }
-      30% { transform: scale(1.03) rotate(1deg); filter: brightness(1.5) sepia(1) hue-rotate(-50deg); background: #f97316; }
-      70% { transform: scale(0.95) rotate(-2deg); filter: brightness(0.8) grayscale(0.5); background: #dc2626; color: transparent; }
-      100% { transform: scale(0) translateY(30px); opacity: 0; }
-    }
-
     .bubble-name {
       font-size: 10.5px;
       color: #64748b;
@@ -430,6 +418,11 @@
       box-shadow: 0 4px 12px rgba(2, 132, 199, 0.3);
       white-space: nowrap;
     }
+    .btn-clean:disabled {
+      background: #94a3b8;
+      cursor: not-allowed;
+      box-shadow: none;
+    }
     .btn-icon {
       background: #e0f2fe;
       color: #0284c7;
@@ -547,17 +540,15 @@
 </head>
 <body class="mode-mobile" id="bodyRoot">
 
-  <!-- BANロック画面 -->
   <div id="banScreen" class="custom-modal" style="display: none; z-index: 99999; background: #0f172a;">
     <div class="modal-card" style="border-color: #ef4444;">
       <div class="modal-title" style="color: #ef4444; font-size: 22px;">🚫 アカウント停止中</div>
       <div class="modal-desc" style="color: #94a3b8; font-size: 13.5px; margin-top: 10px;">
-        このアカウントは管理者によってBANされています。<br>管理者がBANリストからあなたを外すと、自動的に通信網に復帰できます。
+        このアカウントは管理者によってBANされています。
       </div>
     </div>
   </div>
 
-  <!-- 初回名前登録モーダル -->
   <div id="nameModal" class="custom-modal" style="display: none;">
     <div class="modal-card">
       <div class="modal-title">🔐 エージェント道下に登録</div>
@@ -567,7 +558,6 @@
     </div>
   </div>
 
-  <!-- 画像送信プレビュー確認モーダル -->
   <div id="imgConfirmModal" class="custom-modal" style="display: none;">
     <div class="modal-card">
       <div class="modal-title">📷 画像送信の確認</div>
@@ -580,7 +570,6 @@
     </div>
   </div>
 
-  <!-- グループ作成モーダル -->
   <div id="groupCreateModal" class="custom-modal" style="display: none;">
     <div class="modal-card" style="max-width: 380px;">
       <div class="modal-title">👥 グループチャット作成</div>
@@ -595,7 +584,6 @@
     </div>
   </div>
 
-  <!-- メンバー追加モーダル -->
   <div id="addGroupMemberModal" class="custom-modal" style="display: none;">
     <div class="modal-card" style="max-width: 360px; text-align: left;">
       <div class="modal-title" style="font-size: 16px; margin-bottom: 4px;">＋ メンバーを追加</div>
@@ -608,7 +596,6 @@
     </div>
   </div>
 
-  <!-- 作成者権限の譲渡選択モーダル -->
   <div id="transferOwnerModal" class="custom-modal" style="display: none;">
     <div class="modal-card" style="max-width: 360px; text-align: left;">
       <div class="modal-title" style="font-size: 16px; margin-bottom: 4px;">👑 作成者権限の譲渡</div>
@@ -620,7 +607,6 @@
     </div>
   </div>
 
-  <!-- グループ設定・管理用モーダル -->
   <div id="groupSettingsModal" class="custom-modal" style="display: none;" onclick="closeGroupSettingsModal()">
     <div class="modal-card" style="max-width: 360px; text-align: left;" onclick="event.stopPropagation()">
       <div class="modal-title" id="groupSettingsTitle" style="font-size: 16px; margin-bottom: 4px;">グループ管理</div>
@@ -640,7 +626,6 @@
     </div>
   </div>
 
-  <!-- メッセージアクションメニューモーダル -->
   <div id="msgActionModal" class="custom-modal" style="display: none; background: rgba(15, 23, 42, 0.4);" onclick="closeMsgActionModal()">
     <div class="modal-card" style="max-width: 260px; padding: 16px;" onclick="event.stopPropagation()">
       <div class="modal-title" style="font-size: 14px; margin-bottom: 12px;">メッセージ操作</div>
@@ -660,7 +645,6 @@
   </div>
 
   <div class="app-container mode-mobile" id="appContainer">
-    <!-- ヘッダー -->
     <header class="app-header">
       <div class="logo-area">
         <img id="headerUserAvatar" class="user-avatar-head" src="" alt="Icon">
@@ -675,7 +659,6 @@
       </div>
     </header>
 
-    <!-- タブバー -->
     <div class="tab-bar">
       <div class="tab-item active" onclick="switchTab('menu')">🏠 メニュー</div>
       <div class="tab-item" onclick="switchTab('dm')">
@@ -686,7 +669,6 @@
       <div class="tab-item" onclick="switchTab('settings')">⚙️ 設定</div>
     </div>
 
-    <!-- ================= 1. メニュータブ ================= -->
     <div id="viewMenu" class="view-content active">
       <div class="menu-pane">
         <div class="menu-section-header">
@@ -697,7 +679,6 @@
       </div>
     </div>
 
-    <!-- ================= 2. チャットタブ ================= -->
     <div id="viewDm" class="view-content">
       <div class="dm-layout" id="dmUserListLayout">
         <div style="padding: 12px 16px 6px; font-weight: 900; font-size: 13px; color: #64748b; flex-shrink: 0;">エージェント道下一覧 (個人チャット)</div>
@@ -717,13 +698,12 @@
         <div class="input-box-area">
           <input type="file" id="dmImgInput" accept="image/*" style="display: none;" onchange="handleFileSelect(this, 'dm')">
           <button class="btn-icon" onclick="document.getElementById('dmImgInput').click()">📷</button>
-          <input type="text" id="dmInput" class="text-input" placeholder="メッセージを入力..." onkeydown="if(event.key==='Enter') sendDmMsg()">
-          <button class="btn-clean" onclick="sendDmMsg()">送信</button>
+          <input type="text" id="dmInput" class="text-input" placeholder="メッセージを入力 (最大350文字)..." maxlength="350" onkeydown="if(event.key==='Enter') sendDmMsg()">
+          <button class="btn-clean" id="sendBtn" onclick="sendDmMsg()">送信</button>
         </div>
       </div>
     </div>
 
-    <!-- ================= 3. 設定タブ ================= -->
     <div id="viewSettings" class="view-content">
       <div class="settings-pane">
         <div class="setting-card" id="adminPanelCard" style="display:none; border-color:#ef4444; background:#fff1f2;">
@@ -768,6 +748,7 @@
 
     const STORAGE_NAME_KEY = 'SECRET_NETWORK_AGENT_NAME_V1';
     const STORAGE_ICON_KEY = 'SECRET_NETWORK_AGENT_ICON_V1';
+    const STORAGE_MODE_KEY = 'SECRET_NETWORK_SCREEN_MODE_V1';
 
     let myName = localStorage.getItem(STORAGE_NAME_KEY) || "";
     let myIcon = localStorage.getItem(STORAGE_ICON_KEY) || DEFAULT_ICON_1;
@@ -785,14 +766,16 @@
     const db = firebase.database();
 
     let currentActiveDmUser = null;
-    let isPcMode = false;
+    let isPcMode = (localStorage.getItem(STORAGE_MODE_KEY) === 'pc');
     let replyingTo = null;
     let pendingImageData = null;
     let pendingImageMode = null;
     let activeMsgContext = null;
-    let activeChatType = 'dm'; // 'dm' or 'group'
+    let activeChatType = 'dm';
     let currentGroupId = null;
     let currentGroupData = null;
+
+    let canSend = true;
 
     window.addEventListener('keydown', (e) => {
       if (e.key === 'Escape') triggerPanic();
@@ -814,10 +797,29 @@
     }
 
     window.onload = function() {
+      applySavedScreenMode();
       updateAvatarDisplays();
       cleanupInactiveUsers();
       checkBanStatusAndInit();
     };
+
+    function applySavedScreenMode() {
+      const container = document.getElementById('appContainer');
+      const btn = document.getElementById('ratioToggleBtn');
+      if (isPcMode) {
+        container.classList.remove('mode-mobile'); container.classList.add('mode-pc');
+        btn.innerText = "📱スマホ";
+      } else {
+        container.classList.remove('mode-pc'); container.classList.add('mode-mobile');
+        btn.innerText = "💻PC";
+      }
+    }
+
+    function toggleScreenMode() {
+      isPcMode = !isPcMode;
+      localStorage.setItem(STORAGE_MODE_KEY, isPcMode ? 'pc' : 'mobile');
+      applySavedScreenMode();
+    }
 
     function checkBanStatusAndInit() {
       if (!myName || myName === "undefined" || myName === "null") {
@@ -897,19 +899,6 @@
       document.getElementById('adminPanelCard').style.display = 'none';
       initApp();
       alert("管理者モードを終了しました。");
-    }
-
-    function toggleScreenMode() {
-      isPcMode = !isPcMode;
-      const container = document.getElementById('appContainer');
-      const btn = document.getElementById('ratioToggleBtn');
-      if (isPcMode) {
-        container.classList.remove('mode-mobile'); container.classList.add('mode-pc');
-        btn.innerText = "📱スマホ";
-      } else {
-        container.classList.remove('mode-pc'); container.classList.add('mode-mobile');
-        btn.innerText = "💻PC";
-      }
     }
 
     function initApp() {
@@ -1144,6 +1133,7 @@
               myName = targetName;
               localStorage.setItem(STORAGE_NAME_KEY, myName);
             }
+            if (window.presenceInterval) clearInterval(window.presenceInterval);
             checkBanStatusAndInit();
             alert(`名前を変更しました！`);
           }
@@ -1173,7 +1163,6 @@
       });
     }
 
-    // --- グループ作成関連 ---
     function openGroupModal() {
       const container = document.getElementById('groupMemberListContainer');
       container.innerHTML = '';
@@ -1223,7 +1212,6 @@
       });
     }
 
-    // --- グループ設定・管理モーダル ---
     function openGroupSettingsModalIfGroup() {
       if (activeChatType !== 'group' || !currentGroupId) return;
       
@@ -1274,7 +1262,6 @@
       document.getElementById('groupSettingsModal').style.display = 'none';
     }
 
-    // --- メンバー追加機能 ---
     function openAddGroupMemberModal() {
       if (!currentGroupData) return;
       closeGroupSettingsModal();
@@ -1323,14 +1310,12 @@
       });
     }
 
-    // --- 追放機能 (通知付き) ---
     function actionKickMember(targetMember) {
       if (!confirm(`「${targetMember}」をグループから追放しますか？`)) return;
       if (!currentGroupId || !currentGroupData) return;
 
       const newMembers = currentGroupData.members.filter(m => m !== targetMember);
       db.ref(`secret_groups/${currentGroupId}/members`).set(newMembers).then(() => {
-        // 退会・追放通知をチャットに送信
         sendSystemNotice(`${targetMember} が退会しました`);
         alert(`「${targetMember}」を追放しました。`);
         closeGroupSettingsModal();
@@ -1338,7 +1323,6 @@
       });
     }
 
-    // --- 自主退会 (通知付き) ---
     function actionLeaveGroup() {
       if (!currentGroupId || !currentGroupData) return;
       const activeSender = impersonatedName || myName;
@@ -1346,7 +1330,7 @@
       const otherMembers = currentGroupData.members.filter(m => m !== activeSender);
 
       if (otherMembers.length === 0) {
-        if (!confirm("このグループから自主退会しますか？（最後のメンバーのためグループは消去されます）")) return;
+        if (!confirm("このグループから自主退会しますか？")) return;
         db.ref('secret_groups/' + currentGroupId).remove();
         db.ref('secret_group_messages/' + currentGroupId).remove();
         closeGroupSettingsModal();
@@ -1406,7 +1390,7 @@
     }
 
     function actionDeleteGroup() {
-      if (!confirm("本当にこのグループを完全に削除しますか？（参加者全員から見えなくなります）")) return;
+      if (!confirm("本当にこのグループを完全に削除しますか？")) return;
       if (!currentGroupId) return;
 
       db.ref('secret_groups/' + currentGroupId).remove();
@@ -1417,7 +1401,6 @@
       alert("グループを削除しました。");
     }
 
-    // --- システム通知メッセージ送信ヘルパー ---
     function sendSystemNotice(noticeText) {
       if (!currentGroupId) return;
       const now = Date.now();
@@ -1431,7 +1414,6 @@
       });
     }
 
-    // --- メニュー画面のグループチャット一覧同期 ---
     function initMenuGroupListSync() {
       const container = document.getElementById('menuGroupListContainer');
       const activeSender = impersonatedName || myName;
@@ -1468,7 +1450,6 @@
       });
     }
 
-    // --- メッセージアクションメニュー ---
     function openMsgActionModal(path, key, msgName, msgText, isMine) {
       activeMsgContext = { path, key, msgName, msgText, isMine };
       document.getElementById('msgActionModal').style.display = 'flex';
@@ -1510,12 +1491,22 @@
       return escaped.replace(urlRegex, '<a href="$1" target="_blank" onclick="event.stopPropagation()">$1</a>');
     }
 
+    function markAsRead(path, key, msg) {
+      const activeSender = impersonatedName || myName;
+      if (!msg || msg.name === activeSender || msg.type === 'system') return;
+      
+      db.ref(`${path}/${key}/reads/${activeSender}`).once('value', (snap) => {
+        if (!snap.exists()) {
+          db.ref(`${path}/${key}/reads/${activeSender}`).set(true);
+        }
+      });
+    }
+
     function createMessageElement(key, msg, path) {
       const activeSender = impersonatedName || myName;
       const isMine = msg.name === activeSender;
       const row = document.createElement('div');
 
-      // システム通知（退会等）の場合は中央にシステム風に表示
       if (msg.type === 'system') {
         row.style.cssText = "width: 100%; display: flex; justify-content: center; margin: 6px 0;";
         row.innerHTML = `<div style="background: #e2e8f0; color: #475569; font-size: 11px; font-weight: 800; padding: 4px 12px; border-radius: 12px;">📢 ${escapeAndLinkify(msg.text)}</div>`;
@@ -1556,6 +1547,20 @@
         html += `<div class="reaction-display-bar">${reactionHtml}</div>`;
       }
 
+      let readStatusText = '';
+      const reads = msg.reads || {};
+      const readCount = Object.keys(reads).length;
+
+      if (isMine) {
+        if (activeChatType === 'dm') {
+          readStatusText = readCount > 0 ? '既読' : '送信済み';
+        } else {
+          readStatusText = readCount > 0 ? `既読 ${readCount}` : '送信済み';
+        }
+      } else {
+        markAsRead(path, key, msg);
+      }
+
       html += `<div class="bubble-footer">`;
       html += `<div class="msg-actions">`;
       html += `<button class="msg-action-btn" onclick="openMsgActionModal('${path}', '${key}', '${msg.name}', '${(msg.text || '').replace(/'/g, "\\'")}', ${isMine})">…</button>`;
@@ -1567,7 +1572,7 @@
       }
       
       html += `</div>`;
-      html += `<div class="read-counter">${isMine ? '送信済み' : ''}</div>`;
+      html += `<div class="read-counter">${readStatusText}</div>`;
       html += `</div></div>`;
 
       row.innerHTML = html;
@@ -1580,7 +1585,6 @@
       }
     }
 
-    // --- 個人チャット一覧の同期 ---
     function initUserListSync() {
       const container = document.getElementById('onlineUserListContainer');
       const tabUnreadDot = document.getElementById('tabUnreadDot');
@@ -1746,9 +1750,25 @@
     }
 
     function sendDmMsg() {
+      if (!canSend) return;
       const input = document.getElementById('dmInput');
       const text = input.value.trim();
       if (!text && !replyingTo) return;
+
+      if (text.length > 350) {
+        alert("一度に送れる文字数は350文字までです。");
+        return;
+      }
+
+      canSend = false;
+      const sendBtn = document.getElementById('sendBtn');
+      if (sendBtn) sendBtn.disabled = true;
+
+      setTimeout(() => {
+        canSend = true;
+        if (sendBtn) sendBtn.disabled = false;
+      }, 3000);
+
       const activeSender = impersonatedName || myName;
       const activeIconToUse = impersonatedName ? impersonatedIcon : myIcon;
       const now = Date.now();
