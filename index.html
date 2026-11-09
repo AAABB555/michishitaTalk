@@ -595,7 +595,20 @@
     </div>
   </div>
 
-  <!-- 作成者権限の譲渡選択モーダル（作成者が退会する時に使用） -->
+  <!-- メンバー追加モーダル -->
+  <div id="addGroupMemberModal" class="custom-modal" style="display: none;">
+    <div class="modal-card" style="max-width: 360px; text-align: left;">
+      <div class="modal-title" style="font-size: 16px; margin-bottom: 4px;">＋ メンバーを追加</div>
+      <div style="font-size: 12px; color: #64748b; font-weight: 800; margin-bottom: 12px;">追加したいメンバーを選択してください。</div>
+      <div id="addGroupCandidateList" style="max-height: 150px; overflow-y: auto; border: 1.5px solid #e2e8f0; border-radius: 10px; padding: 6px; margin-bottom: 14px; display: flex; flex-direction: column; gap: 6px;"></div>
+      <div style="display: flex; gap: 8px;">
+        <button class="btn-clean" style="flex:1; background: #64748b; height: 36px; font-size: 11px;" onclick="document.getElementById('addGroupMemberModal').style.display='none'">キャンセル</button>
+        <button class="btn-clean" style="flex:1; height: 36px; font-size: 11px;" onclick="confirmAddGroupMembers()">追加する</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- 作成者権限の譲渡選択モーダル -->
   <div id="transferOwnerModal" class="custom-modal" style="display: none;">
     <div class="modal-card" style="max-width: 360px; text-align: left;">
       <div class="modal-title" style="font-size: 16px; margin-bottom: 4px;">👑 作成者権限の譲渡</div>
@@ -613,7 +626,10 @@
       <div class="modal-title" id="groupSettingsTitle" style="font-size: 16px; margin-bottom: 4px;">グループ管理</div>
       <div id="groupSettingsSubtitle" style="font-size: 11px; color: #64748b; font-weight: 800; margin-bottom: 12px;"></div>
       
-      <div style="font-size: 12px; font-weight: 900; color: #0284c7; margin-bottom: 6px;">メンバー一覧</div>
+      <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 6px;">
+        <div style="font-size: 12px; font-weight: 900; color: #0284c7;">メンバー一覧</div>
+        <button class="btn-clean" style="height: 26px; padding: 0 10px; font-size: 11px;" onclick="openAddGroupMemberModal()">＋ 追加</button>
+      </div>
       <div id="groupSettingsMemberList" style="max-height: 140px; overflow-y: auto; border: 1.5px solid #e2e8f0; border-radius: 10px; padding: 6px; margin-bottom: 14px; display: flex; flex-direction: column; gap: 6px;"></div>
 
       <div style="display: flex; flex-direction: column; gap: 8px;">
@@ -624,7 +640,7 @@
     </div>
   </div>
 
-  <!-- メッセージアクションメニューモーダル（「…」ボタン用） -->
+  <!-- メッセージアクションメニューモーダル -->
   <div id="msgActionModal" class="custom-modal" style="display: none; background: rgba(15, 23, 42, 0.4);" onclick="closeMsgActionModal()">
     <div class="modal-card" style="max-width: 260px; padding: 16px;" onclick="event.stopPropagation()">
       <div class="modal-title" style="font-size: 14px; margin-bottom: 12px;">メッセージ操作</div>
@@ -1258,26 +1274,77 @@
       document.getElementById('groupSettingsModal').style.display = 'none';
     }
 
+    // --- メンバー追加機能 ---
+    function openAddGroupMemberModal() {
+      if (!currentGroupData) return;
+      closeGroupSettingsModal();
+
+      const container = document.getElementById('addGroupCandidateList');
+      container.innerHTML = '';
+
+      db.ref('secret_users').once('value', (snap) => {
+        const users = snap.val() || {};
+        const currentMembers = currentGroupData.members || [];
+        let count = 0;
+
+        Object.values(users).forEach(u => {
+          if (!u.name || u.name === "undefined" || currentMembers.includes(u.name)) return;
+          count++;
+
+          const label = document.createElement('label');
+          label.style.cssText = "display: flex; align-items: center; gap: 8px; font-size: 12px; font-weight: 800; cursor: pointer;";
+          label.innerHTML = `<input type="checkbox" value="${u.name}" class="add-member-chk" style="width: 16px; height: 16px;"> <img src="${u.icon || DEFAULT_ICON_1}" style="width:20px;height:20px;border-radius:50%;object-fit:cover;"> ${u.name}`;
+          container.appendChild(label);
+        });
+
+        if (count === 0) {
+          container.innerHTML = '<div style="font-size: 11px; color: #64748b; font-weight: 700; text-align: center; padding: 10px;">追加できる他のメンバーがいません</div>';
+        }
+      });
+
+      document.getElementById('addGroupMemberModal').style.display = 'flex';
+    }
+
+    function confirmAddGroupMembers() {
+      const chks = document.querySelectorAll('.add-member-chk:checked');
+      if (chks.length === 0) return alert("追加するメンバーを選択してください！");
+      if (!currentGroupId || !currentGroupData) return;
+
+      const newMembers = [...(currentGroupData.members || [])];
+      chks.forEach(chk => {
+        if (!newMembers.includes(chk.value)) {
+          newMembers.push(chk.value);
+        }
+      });
+
+      db.ref(`secret_groups/${currentGroupId}/members`).set(newMembers).then(() => {
+        document.getElementById('addGroupMemberModal').style.display = 'none';
+        alert("メンバーを追加しました！");
+      });
+    }
+
+    // --- 追放機能 (通知付き) ---
     function actionKickMember(targetMember) {
       if (!confirm(`「${targetMember}」をグループから追放しますか？`)) return;
       if (!currentGroupId || !currentGroupData) return;
 
       const newMembers = currentGroupData.members.filter(m => m !== targetMember);
       db.ref(`secret_groups/${currentGroupId}/members`).set(newMembers).then(() => {
+        // 退会・追放通知をチャットに送信
+        sendSystemNotice(`${targetMember} が退会しました`);
         alert(`「${targetMember}」を追放しました。`);
         closeGroupSettingsModal();
         openGroupSettingsModalIfGroup();
       });
     }
 
-    // --- 自主退会（作成者の場合は権限譲渡が必須） ---
+    // --- 自主退会 (通知付き) ---
     function actionLeaveGroup() {
       if (!currentGroupId || !currentGroupData) return;
       const activeSender = impersonatedName || myName;
       const isCreator = (currentGroupData.creator === activeSender);
       const otherMembers = currentGroupData.members.filter(m => m !== activeSender);
 
-      // メンバーが自分1人だけの場合、または誰も残らない場合はそのままグループ削除して退会
       if (otherMembers.length === 0) {
         if (!confirm("このグループから自主退会しますか？（最後のメンバーのためグループは消去されます）")) return;
         db.ref('secret_groups/' + currentGroupId).remove();
@@ -1288,23 +1355,21 @@
         return;
       }
 
-      // 作成者の場合、他のメンバーに権限を譲渡しなければ退会できないようにする
       if (isCreator) {
         closeGroupSettingsModal();
         openTransferOwnerModal(otherMembers);
         return;
       }
 
-      // 一般メンバーの退会処理
       if (!confirm("このグループから自主退会しますか？")) return;
       db.ref(`secret_groups/${currentGroupId}/members`).set(otherMembers).then(() => {
+        sendSystemNotice(`${activeSender} が退会しました`);
         closeGroupSettingsModal();
         backToUserList();
         alert("グループから退会しました。");
       });
     }
 
-    // --- 作成者権限の譲渡候補選択モーダルを開く ---
     function openTransferOwnerModal(candidates) {
       const container = document.getElementById('transferCandidateList');
       container.innerHTML = '';
@@ -1322,19 +1387,18 @@
       document.getElementById('transferOwnerModal').style.display = 'flex';
     }
 
-    // --- 権限を譲渡して自分は退会する ---
     function confirmTransferAndLeave(newCreator) {
       if (!confirm(`「${newCreator}」を作成者に任命し、自分はグループを退会しますか？`)) return;
       if (!currentGroupId || !currentGroupData) return;
 
       const activeSender = impersonatedName || myName;
-      const newMembers = currentGroupData.members.nativeFilter ? null : currentGroupData.members.filter(m => m !== activeSender);
+      const newMembers = currentGroupData.members.filter(m => m !== activeSender);
 
-      // 作成者を変更し、メンバーから自分を外す更新を同時に行う
       db.ref(`secret_groups/${currentGroupId}`).update({
         creator: newCreator,
         members: newMembers
       }).then(() => {
+        sendSystemNotice(`${activeSender} が退会しました`);
         document.getElementById('transferOwnerModal').style.display = 'none';
         backToUserList();
         alert(`「${newCreator}」を作成者に任命し、グループから退会しました。`);
@@ -1351,6 +1415,20 @@
       closeGroupSettingsModal();
       backToUserList();
       alert("グループを削除しました。");
+    }
+
+    // --- システム通知メッセージ送信ヘルパー ---
+    function sendSystemNotice(noticeText) {
+      if (!currentGroupId) return;
+      const now = Date.now();
+      db.ref('secret_group_messages/' + currentGroupId).push({
+        name: 'システム通知',
+        icon: DEFAULT_ICON_1,
+        text: noticeText,
+        type: 'system',
+        rawTime: now,
+        time: new Date(now).toLocaleTimeString('ja-JP', {hour: '2-digit', minute:'2-digit'})
+      });
     }
 
     // --- メニュー画面のグループチャット一覧同期 ---
@@ -1390,7 +1468,7 @@
       });
     }
 
-    // --- メッセージアクションメニュー (「…」ボタン用) ---
+    // --- メッセージアクションメニュー ---
     function openMsgActionModal(path, key, msgName, msgText, isMine) {
       activeMsgContext = { path, key, msgName, msgText, isMine };
       document.getElementById('msgActionModal').style.display = 'flex';
@@ -1436,6 +1514,14 @@
       const activeSender = impersonatedName || myName;
       const isMine = msg.name === activeSender;
       const row = document.createElement('div');
+
+      // システム通知（退会等）の場合は中央にシステム風に表示
+      if (msg.type === 'system') {
+        row.style.cssText = "width: 100%; display: flex; justify-content: center; margin: 6px 0;";
+        row.innerHTML = `<div style="background: #e2e8f0; color: #475569; font-size: 11px; font-weight: 800; padding: 4px 12px; border-radius: 12px;">📢 ${escapeAndLinkify(msg.text)}</div>`;
+        return row;
+      }
+
       row.className = `chat-row ${isMine ? 'mine' : ''}`;
 
       const iconUrl = msg.icon || DEFAULT_ICON_1;
@@ -1634,7 +1720,7 @@
 
         if (isNewMessageAdded) {
           const latest = entries[entries.length - 1][1];
-          if (latest.name !== activeSender) {
+          if (latest.name !== activeSender && latest.name !== 'システム通知') {
             showBrowserNotification(`[チャット] ${latest.name}さん`, latest.type === 'image' ? '画像' : latest.text);
           }
         }
