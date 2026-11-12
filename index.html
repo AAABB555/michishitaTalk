@@ -766,6 +766,7 @@
 
     let impersonatedName = null;
     let impersonatedIcon = null;
+    let currentPresenceRef = null;
 
     const firebaseConfig = {
       databaseURL: "https://michishita-typing-94d91-default-rtdb.firebaseio.com"
@@ -841,6 +842,7 @@
         return;
       }
 
+      db.ref('secret_bans/' + myName).off();
       db.ref('secret_bans/' + myName).on('value', (snap) => {
         if (snap.val() === true) {
           document.getElementById('banScreen').style.display = 'flex';
@@ -935,27 +937,42 @@
 
     function registerUserPresence() {
       const activeName = impersonatedName || myName;
-      const activeIconToUse = impersonatedName ? impersonatedIcon : myIcon;
       if (!activeName || activeName === "undefined") return;
+
+      if (currentPresenceRef) {
+        currentPresenceRef.onDisconnect().cancel();
+      }
+
       const userRef = db.ref('secret_users/' + activeName);
-      
+      currentPresenceRef = userRef;
+
       userRef.once('value', (snap) => {
         const currentData = snap.val() || {};
-        userRef.set({
+        const iconToSave = impersonatedName
+          ? (impersonatedIcon || currentData.icon || DEFAULT_ICON_1)
+          : (myIcon || currentData.icon || DEFAULT_ICON_1);
+
+        if (!impersonatedName && currentData.icon && myIcon === DEFAULT_ICON_1 && currentData.icon !== DEFAULT_ICON_1) {
+          myIcon = currentData.icon;
+          localStorage.setItem(STORAGE_ICON_KEY, myIcon);
+          updateAvatarDisplays();
+        }
+
+        userRef.update({
           name: activeName,
-          icon: impersonatedName ? (impersonatedIcon || currentData.icon || DEFAULT_ICON_1) : (myIcon || currentData.icon || DEFAULT_ICON_1),
+          icon: iconToSave,
           lastActive: firebase.database.ServerValue.TIMESTAMP
         });
       });
+
       userRef.onDisconnect().remove();
 
       if (window.presenceInterval) clearInterval(window.presenceInterval);
       window.presenceInterval = setInterval(() => {
         const curName = impersonatedName || myName;
-        const curIcon = impersonatedName ? impersonatedIcon : myIcon;
+        if (!curName) return;
         db.ref('secret_users/' + curName).update({
-          lastActive: firebase.database.ServerValue.TIMESTAMP,
-          icon: curIcon
+          lastActive: firebase.database.ServerValue.TIMESTAMP
         });
       }, 10000);
     }
@@ -987,6 +1004,7 @@
       const userContainer = document.getElementById('adminUserListContainer');
       const banContainer = document.getElementById('adminBanListContainer');
 
+      db.ref('secret_users').off();
       db.ref('secret_users').on('value', (snap) => {
         const users = snap.val() || {};
         userContainer.innerHTML = '';
@@ -1006,6 +1024,7 @@
         });
       });
 
+      db.ref('secret_bans').off();
       db.ref('secret_bans').on('value', (snap) => {
         const bans = snap.val() || {};
         banContainer.innerHTML = '';
@@ -1033,7 +1052,6 @@
       impersonatedName = targetName;
       impersonatedIcon = targetIcon || DEFAULT_ICON_1;
       updateAvatarDisplays();
-      registerUserPresence();
       initApp();
       alert(`${targetName} に憑依しました！`);
       switchTab('menu');
@@ -1043,7 +1061,6 @@
       impersonatedName = null;
       impersonatedIcon = null;
       updateAvatarDisplays();
-      registerUserPresence();
       initApp();
       alert("憑依を解除しました。");
     }
@@ -1081,9 +1098,18 @@
       const activeName = impersonatedName || myName;
       if (!confirm(`本当にアカウント「${activeName}」を完全に削除しますか？`)) return;
 
+      if (currentPresenceRef) {
+        currentPresenceRef.onDisconnect().cancel();
+        currentPresenceRef = null;
+      }
+
       db.ref('secret_users/' + activeName).remove().then(() => {
-        localStorage.removeItem(STORAGE_NAME_KEY);
-        myName = "";
+        if (!impersonatedName) {
+          localStorage.removeItem(STORAGE_NAME_KEY);
+          localStorage.removeItem(STORAGE_ICON_KEY);
+          myName = "";
+          myIcon = DEFAULT_ICON_1;
+        }
         impersonatedName = null;
         impersonatedIcon = null;
         if (window.presenceInterval) clearInterval(window.presenceInterval);
@@ -1180,41 +1206,60 @@
           }
 
           if (confirm(`「${targetName}」に変更しますか？`)) {
-            db.ref('secret_groups').once('value', (groupSnap) => {
-              const groups = groupSnap.val() || {};
-              const groupUpdates = {};
+            if (window.presenceInterval) clearInterval(window.presenceInterval);
+            if (currentPresenceRef) {
+              currentPresenceRef.onDisconnect().cancel();
+              currentPresenceRef = null;
+            }
 
-              Object.entries(groups).forEach(([gId, gData]) => {
-                let updated = false;
-                let newMembers = [...(gData.members || [])];
-                let newCreator = gData.creator;
+            db.ref('secret_users/' + currentActiveName).once('value', (oldUserSnap) => {
+              const oldUserData = oldUserSnap.val() || {};
+              const preservedIcon = impersonatedName
+                ? (impersonatedIcon || oldUserData.icon || DEFAULT_ICON_1)
+                : (myIcon || oldUserData.icon || DEFAULT_ICON_1);
 
-                if (newMembers.includes(currentActiveName)) {
-                  newMembers = newMembers.map(m => m === currentActiveName ? targetName : m);
-                  updated = true;
-                }
-                if (gData.creator === currentActiveName) {
-                  newCreator = targetName;
-                  updated = true;
-                }
+              db.ref('secret_groups').once('value', (groupSnap) => {
+                const groups = groupSnap.val() || {};
+                const multiUpdates = {};
 
-                if (updated) {
-                  groupUpdates[`secret_groups/${gId}/members`] = newMembers;
-                  groupUpdates[`secret_groups/${gId}/creator`] = newCreator;
-                }
-              });
+                Object.entries(groups).forEach(([gId, gData]) => {
+                  let updated = false;
+                  let newMembers = [...(gData.members || [])];
+                  let newCreator = gData.creator;
 
-              db.ref().update(groupUpdates).then(() => {
-                db.ref('secret_users/' + currentActiveName).remove();
-                if (impersonatedName) {
-                  impersonatedName = targetName;
-                } else {
-                  myName = targetName;
-                  localStorage.setItem(STORAGE_NAME_KEY, myName);
-                }
-                if (window.presenceInterval) clearInterval(window.presenceInterval);
-                checkBanStatusAndInit();
-                alert(`名前を変更しました！`);
+                  if (newMembers.includes(currentActiveName)) {
+                    newMembers = newMembers.map(m => m === currentActiveName ? targetName : m);
+                    updated = true;
+                  }
+                  if (gData.creator === currentActiveName) {
+                    newCreator = targetName;
+                    updated = true;
+                  }
+
+                  if (updated) {
+                    multiUpdates[`secret_groups/${gId}/members`] = newMembers;
+                    multiUpdates[`secret_groups/${gId}/creator`] = newCreator;
+                  }
+                });
+
+                multiUpdates[`secret_users/${currentActiveName}`] = null;
+                multiUpdates[`secret_users/${targetName}`] = {
+                  name: targetName,
+                  icon: preservedIcon,
+                  lastActive: firebase.database.ServerValue.TIMESTAMP
+                };
+
+                db.ref().update(multiUpdates).then(() => {
+                  if (impersonatedName) {
+                    impersonatedName = targetName;
+                    impersonatedIcon = preservedIcon;
+                  } else {
+                    myName = targetName;
+                    localStorage.setItem(STORAGE_NAME_KEY, myName);
+                  }
+                  checkBanStatusAndInit();
+                  alert(`名前を変更しました！`);
+                });
               });
             });
           }
@@ -1499,6 +1544,7 @@
       const container = document.getElementById('menuGroupListContainer');
       const activeSender = impersonatedName || myName;
 
+      db.ref('secret_groups').off();
       db.ref('secret_groups').on('value', (groupSnap) => {
         const groups = groupSnap.val() || {};
         container.innerHTML = '';
@@ -1734,6 +1780,7 @@
       document.getElementById('dmUserListLayout').style.display = 'none';
       document.getElementById('dmChatRoomLayout').style.display = 'flex';
 
+      db.ref(`secret_groups/${groupId}`).off();
       db.ref(`secret_groups/${groupId}`).on('value', (snap) => {
         const gData = snap.val();
         if (gData && gData.members) {
@@ -1772,6 +1819,7 @@
         syncPath = 'secret_group_messages/' + currentGroupId;
       }
 
+      db.ref(syncPath).off();
       db.ref(syncPath).limitToLast(50).on('value', (snapshot) => {
         const oldScrollTop = container.scrollTop;
         const oldScrollHeight = container.scrollHeight;
