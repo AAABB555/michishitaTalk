@@ -786,7 +786,6 @@
     let currentGroupData = null;
 
     let canSend = true;
-    let lastMsgCount = {};
 
     window.addEventListener('keydown', (e) => {
       if (e.key === 'Escape') triggerPanic();
@@ -895,10 +894,6 @@
           if (confirm(`「${targetName}」は使用可能です！参加しますか？`)) {
             myName = targetName;
             localStorage.setItem(STORAGE_NAME_KEY, myName);
-            if (!myIcon) {
-              myIcon = DEFAULT_ICON_1;
-              localStorage.setItem(STORAGE_ICON_KEY, myIcon);
-            }
             document.getElementById('nameModal').style.display = 'none';
             checkBanStatusAndInit();
           }
@@ -906,28 +901,53 @@
       });
     }
 
-    function initApp() {
+    // --- 自分のアカウントを完全に削除する機能 ---
+    function deleteMyAccount() {
       const activeName = impersonatedName || myName;
+      if (!confirm(`本当にアカウント「${activeName}」を完全に削除しますか？\n（この操作は元に戻せません）`)) return;
+
+      db.ref('secret_users/' + activeName).remove().then(() => {
+        localStorage.removeItem(STORAGE_NAME_KEY);
+        myName = "";
+        impersonatedName = null;
+        impersonatedIcon = null;
+        if (window.presenceInterval) clearInterval(window.presenceInterval);
+
+        document.getElementById('groupSettingsModal').style.display = 'none';
+        document.getElementById('msgActionModal').style.display = 'none';
+        document.getElementById('banScreen').style.display = 'none';
+        document.getElementById('nameModal').style.display = 'flex';
+        document.getElementById('initialNameInput').value = '';
+
+        alert("アカウントを削除しました。初期登録画面に戻ります。");
+      });
+    }
+
+    function quitAdminMode() {
+      isAdmin = false;
+      impersonatedName = null;
+      impersonatedIcon = null;
+      document.getElementById('adminHeaderBadge').style.display = 'none';
+      document.getElementById('adminPanelCard').style.display = 'none';
+      initApp();
+      alert("管理者モードを終了しました。");
+    }
+
+    function initApp() {
       const displayName = impersonatedName ? `🛡️[憑依: ${impersonatedName}]` : myName;
       document.getElementById('headerUserTag').innerText = `道下ID: ${displayName}`;
-      document.getElementById('settingNameInput').value = activeName;
-
-      if (isAdmin) {
-        document.getElementById('adminHeaderBadge').style.display = 'inline-block';
-        document.getElementById('adminPanelCard').style.display = 'flex';
-        initAdminPanel();
-      } else {
-        document.getElementById('adminHeaderBadge').style.display = 'none';
-        document.getElementById('adminPanelCard').style.display = 'none';
-      }
-
+      document.getElementById('settingNameInput').value = impersonatedName || myName;
+      
       if (impersonatedName) {
         document.getElementById('unimpersonateBtn').style.display = 'inline-block';
       } else {
         document.getElementById('unimpersonateBtn').style.display = 'none';
       }
 
-      updateAvatarDisplays();
+      if (isAdmin) {
+        document.getElementById('adminHeaderBadge').style.display = 'inline-block';
+        document.getElementById('adminPanelCard').style.display = 'flex';
+      }
       registerUserPresence();
       initUserListSync();
       initMenuGroupListSync();
@@ -939,14 +959,9 @@
       if (!activeName || activeName === "undefined") return;
       const userRef = db.ref('secret_users/' + activeName);
       userRef.set({ name: activeName, icon: activeIconToUse, lastActive: firebase.database.ServerValue.TIMESTAMP });
-      userRef.onDisconnect().remove();
-
       if (window.presenceInterval) clearInterval(window.presenceInterval);
       window.presenceInterval = setInterval(() => {
-        db.ref('secret_users/' + (impersonatedName || myName)).update({
-          lastActive: firebase.database.ServerValue.TIMESTAMP,
-          icon: (impersonatedName ? impersonatedIcon : myIcon)
-        });
+        userRef.update({ lastActive: firebase.database.ServerValue.TIMESTAMP, icon: (impersonatedName ? impersonatedIcon : myIcon) });
       }, 10000);
     }
 
@@ -1002,7 +1017,7 @@
         const bannedNames = Object.keys(bans).filter(name => bans[name] === true);
 
         if (bannedNames.length === 0) {
-          banContainer.innerHTML = '<div style="font-size:11px; color:#64748b; font-weight:700; padding:4px;">現在BANされているユーザーはありません</div>';
+          banContainer.innerHTML = '<div style="font-size:11px; color:#64748b; font-weight:700; padding:4px;">現在BANされているユーザーはいません</div>';
           return;
         }
 
@@ -1023,9 +1038,8 @@
       impersonatedName = targetName;
       impersonatedIcon = targetIcon || DEFAULT_ICON_1;
       updateAvatarDisplays();
-      registerUserPresence();
       initApp();
-      alert(`${targetName} に憑依しました！`);
+      alert(`${targetName} に憑依しました！これより完全になりきって操作できます。`);
       switchTab('menu');
     }
 
@@ -1033,19 +1047,8 @@
       impersonatedName = null;
       impersonatedIcon = null;
       updateAvatarDisplays();
-      registerUserPresence();
       initApp();
-      alert("憑依を解除しました。");
-    }
-
-    function quitAdminMode() {
-      isAdmin = false;
-      impersonatedName = null;
-      impersonatedIcon = null;
-      document.getElementById('adminHeaderBadge').style.display = 'none';
-      document.getElementById('adminPanelCard').style.display = 'none';
-      initApp();
-      alert("管理者モードを終了しました。");
+      alert("憑依を解除し、元の自分のアカウントに戻りました。");
     }
 
     function deleteAccount(targetName) {
@@ -1055,37 +1058,22 @@
     }
 
     function banUser(targetName) {
-      if (!confirm(`「${targetName}」をBANしますか？`)) return;
+      if (!confirm(`「${targetName}」をBANリストに追加しますか？`)) return;
       db.ref('secret_bans/' + targetName).set(true);
       db.ref('secret_users/' + targetName).remove();
       alert(`「${targetName}」をBANしました。`);
     }
 
     function unbanUser(targetName) {
-      if (!confirm(`「${targetName}」のBANを解除しますか？`)) return;
+      if (!confirm(`「${targetName}」のBANを解除して通信網に復帰させますか？`)) return;
       db.ref('secret_bans/' + targetName).remove();
       alert(`「${targetName}」のBANを解除しました！`);
     }
 
-    function deleteMyAccount() {
-      const activeName = impersonatedName || myName;
-      if (!confirm(`本当にアカウント「${activeName}」を完全に削除しますか？`)) return;
-
-      db.ref('secret_users/' + activeName).remove().then(() => {
-        localStorage.removeItem(STORAGE_NAME_KEY);
-        myName = "";
-        impersonatedName = null;
-        impersonatedIcon = null;
-        if (window.presenceInterval) clearInterval(window.presenceInterval);
-
-        document.getElementById('groupSettingsModal').style.display = 'none';
-        document.getElementById('msgActionModal').style.display = 'none';
-        document.getElementById('banScreen').style.display = 'none';
-        document.getElementById('nameModal').style.display = 'flex';
-        document.getElementById('initialNameInput').value = '';
-
-        alert("アカウントを削除しました。");
-      });
+    function adminBurnMessage(path, msgKey) {
+      if (!isAdmin) return;
+      if (!confirm("管理者権限でこのメッセージを炎上消去しますか？")) return;
+      db.ref(`${path}/${msgKey}`).remove();
     }
 
     function handleAvatarFileSelect(input) {
@@ -1170,44 +1158,16 @@
           }
 
           if (confirm(`「${targetName}」に変更しますか？`)) {
-            // BUG FIX: Update group memberships and creator names when changing username
-            db.ref('secret_groups').once('value', (groupSnap) => {
-              const groups = groupSnap.val() || {};
-              const groupUpdates = {};
-
-              Object.entries(groups).forEach(([gId, gData]) => {
-                let updated = false;
-                let newMembers = [...(gData.members || [])];
-                let newCreator = gData.creator;
-
-                if (newMembers.includes(currentActiveName)) {
-                  newMembers = newMembers.map(m => m === currentActiveName ? targetName : m);
-                  updated = true;
-                }
-                if (gData.creator === currentActiveName) {
-                  newCreator = targetName;
-                  updated = true;
-                }
-
-                if (updated) {
-                  groupUpdates[`secret_groups/${gId}/members`] = newMembers;
-                  groupUpdates[`secret_groups/${gId}/creator`] = newCreator;
-                }
-              });
-
-              db.ref().update(groupUpdates).then(() => {
-                db.ref('secret_users/' + currentActiveName).remove();
-                if (impersonatedName) {
-                  impersonatedName = targetName;
-                } else {
-                  myName = targetName;
-                  localStorage.setItem(STORAGE_NAME_KEY, myName);
-                }
-                if (window.presenceInterval) clearInterval(window.presenceInterval);
-                checkBanStatusAndInit();
-                alert(`名前を変更しました！`);
-              });
-            });
+            db.ref('secret_users/' + currentActiveName).remove();
+            if (impersonatedName) {
+              impersonatedName = targetName;
+            } else {
+              myName = targetName;
+              localStorage.setItem(STORAGE_NAME_KEY, myName);
+            }
+            if (window.presenceInterval) clearInterval(window.presenceInterval);
+            checkBanStatusAndInit();
+            alert(`名前を変更しました！`);
           }
         });
       });
@@ -1507,7 +1467,7 @@
               <div style="width:32px; height:32px; border-radius:50%; background:#0284c7; color:#fff; display:flex; align-items:center; justify-content:center; font-weight:900; font-size:14px;">👥</div>
               <span>${gData.name} <span style="font-size:11px; color:#64748b; font-weight:700;">(${memberCount}人)</span></span>
             </div>
-            <span style="font-size: 11px; color: #0284c7;">チャットを開く →</span>
+            <span style="font-size: 11px; color: #0284c7;">チャップを開く →</span>
           `;
           div.onclick = () => {
             switchTab('dm');
@@ -1632,12 +1592,6 @@
       }
     }
 
-    function adminBurnMessage(path, msgKey) {
-      if (!isAdmin) return;
-      if (!confirm("管理者権限でこのメッセージを炎上消去しますか？")) return;
-      db.ref(`${path}/${msgKey}`).remove();
-    }
-
     function initUserListSync() {
       const container = document.getElementById('onlineUserListContainer');
       const tabUnreadDot = document.getElementById('tabUnreadDot');
@@ -1747,6 +1701,7 @@
       document.getElementById('dmUserListLayout').style.display = 'flex';
     }
 
+    let lastMsgCount = {};
     function initChatSync() {
       const container = document.getElementById('dmMessagesContainer');
       const activeSender = impersonatedName || myName;
