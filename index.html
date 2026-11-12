@@ -810,6 +810,7 @@
     window.onload = function() {
       applySavedScreenMode();
       updateAvatarDisplays();
+      cleanupInactiveUsers();
       checkBanStatusAndInit();
     };
 
@@ -840,7 +841,6 @@
         return;
       }
 
-      db.ref('secret_bans/' + myName).off();
       db.ref('secret_bans/' + myName).on('value', (snap) => {
         if (snap.val() === true) {
           document.getElementById('banScreen').style.display = 'flex';
@@ -850,6 +850,19 @@
           document.getElementById('nameModal').style.display = 'none';
           initApp();
         }
+      });
+    }
+
+    function cleanupInactiveUsers() {
+      const SEVEN_DAYS_MS = 7 * 24 * 60 * 60 * 1000;
+      const now = Date.now();
+      db.ref('secret_users').once('value', (snap) => {
+        const users = snap.val() || {};
+        Object.entries(users).forEach(([userName, uData]) => {
+          if (!userName || userName === "undefined" || (uData.lastActive && (now - uData.lastActive > SEVEN_DAYS_MS))) {
+            db.ref('secret_users/' + userName).remove();
+          }
+        });
       });
     }
 
@@ -872,15 +885,20 @@
 
         db.ref('secret_users/' + targetName).once('value', (snap) => {
           const uData = snap.val();
-          if (confirm(`「${targetName}」で通信網に参加しますか？`)) {
+          const SEVEN_DAYS_MS = 7 * 24 * 60 * 60 * 1000;
+          
+          if (uData && uData.lastActive && (Date.now() - uData.lastActive <= SEVEN_DAYS_MS)) {
+            alert(`「${targetName}」は現在他の人が使用しています。`);
+            return;
+          }
+
+          if (confirm(`「${targetName}」は使用可能です！参加しますか？`)) {
             myName = targetName;
             localStorage.setItem(STORAGE_NAME_KEY, myName);
-            if (!myIcon && uData && uData.icon) {
-              myIcon = uData.icon;
-            } else if (!myIcon) {
+            if (!myIcon) {
               myIcon = DEFAULT_ICON_1;
+              localStorage.setItem(STORAGE_ICON_KEY, myIcon);
             }
-            localStorage.setItem(STORAGE_ICON_KEY, myIcon);
             document.getElementById('nameModal').style.display = 'none';
             checkBanStatusAndInit();
           }
@@ -917,35 +935,17 @@
 
     function registerUserPresence() {
       const activeName = impersonatedName || myName;
+      const activeIconToUse = impersonatedName ? impersonatedIcon : myIcon;
       if (!activeName || activeName === "undefined") return;
-
       const userRef = db.ref('secret_users/' + activeName);
-
-      userRef.once('value', (snap) => {
-        const currentData = snap.val() || {};
-        const iconToSave = impersonatedName
-          ? (impersonatedIcon || currentData.icon || DEFAULT_ICON_1)
-          : (myIcon || currentData.icon || DEFAULT_ICON_1);
-
-        if (!impersonatedName && currentData.icon && myIcon === DEFAULT_ICON_1 && currentData.icon !== DEFAULT_ICON_1) {
-          myIcon = currentData.icon;
-          localStorage.setItem(STORAGE_ICON_KEY, myIcon);
-          updateAvatarDisplays();
-        }
-
-        userRef.update({
-          name: activeName,
-          icon: iconToSave,
-          lastActive: firebase.database.ServerValue.TIMESTAMP
-        });
-      });
+      userRef.set({ name: activeName, icon: activeIconToUse, lastActive: firebase.database.ServerValue.TIMESTAMP });
+      userRef.onDisconnect().remove();
 
       if (window.presenceInterval) clearInterval(window.presenceInterval);
       window.presenceInterval = setInterval(() => {
-        const curName = impersonatedName || myName;
-        if (!curName) return;
-        db.ref('secret_users/' + curName).update({
-          lastActive: firebase.database.ServerValue.TIMESTAMP
+        db.ref('secret_users/' + (impersonatedName || myName)).update({
+          lastActive: firebase.database.ServerValue.TIMESTAMP,
+          icon: (impersonatedName ? impersonatedIcon : myIcon)
         });
       }, 10000);
     }
@@ -977,7 +977,6 @@
       const userContainer = document.getElementById('adminUserListContainer');
       const banContainer = document.getElementById('adminBanListContainer');
 
-      db.ref('secret_users').off();
       db.ref('secret_users').on('value', (snap) => {
         const users = snap.val() || {};
         userContainer.innerHTML = '';
@@ -997,7 +996,6 @@
         });
       });
 
-      db.ref('secret_bans').off();
       db.ref('secret_bans').on('value', (snap) => {
         const bans = snap.val() || {};
         banContainer.innerHTML = '';
@@ -1025,6 +1023,7 @@
       impersonatedName = targetName;
       impersonatedIcon = targetIcon || DEFAULT_ICON_1;
       updateAvatarDisplays();
+      registerUserPresence();
       initApp();
       alert(`${targetName} に憑依しました！`);
       switchTab('menu');
@@ -1034,6 +1033,7 @@
       impersonatedName = null;
       impersonatedIcon = null;
       updateAvatarDisplays();
+      registerUserPresence();
       initApp();
       alert("憑依を解除しました。");
     }
@@ -1072,12 +1072,8 @@
       if (!confirm(`本当にアカウント「${activeName}」を完全に削除しますか？`)) return;
 
       db.ref('secret_users/' + activeName).remove().then(() => {
-        if (!impersonatedName) {
-          localStorage.removeItem(STORAGE_NAME_KEY);
-          localStorage.removeItem(STORAGE_ICON_KEY);
-          myName = "";
-          myIcon = DEFAULT_ICON_1;
-        }
+        localStorage.removeItem(STORAGE_NAME_KEY);
+        myName = "";
         impersonatedName = null;
         impersonatedIcon = null;
         if (window.presenceInterval) clearInterval(window.presenceInterval);
@@ -1115,9 +1111,9 @@
           } else {
             myIcon = newIconData;
             localStorage.setItem(STORAGE_ICON_KEY, myIcon);
-            db.ref('secret_users/' + myName).update({ icon: myIcon });
           }
           updateAvatarDisplays();
+          registerUserPresence();
           alert("アイコンを変更しました！");
         }
         img.src = e.target.result;
@@ -1134,9 +1130,9 @@
       } else {
         myIcon = defaultIcon;
         localStorage.setItem(STORAGE_ICON_KEY, myIcon);
-        db.ref('secret_users/' + myName).update({ icon: myIcon });
       }
       updateAvatarDisplays();
+      registerUserPresence();
       alert("初期アイコンに戻しました！");
     }
 
@@ -1164,18 +1160,20 @@
           return;
         }
 
-        if (confirm(`「${targetName}」に変更しますか？`)) {
-          if (window.presenceInterval) clearInterval(window.presenceInterval);
+        db.ref('secret_users/' + targetName).once('value', (snap) => {
+          const uData = snap.val();
+          const SEVEN_DAYS_MS = 7 * 24 * 60 * 60 * 1000;
 
-          db.ref('secret_users/' + currentActiveName).once('value', (oldUserSnap) => {
-            const oldUserData = oldUserSnap.val() || {};
-            const preservedIcon = impersonatedName
-              ? (impersonatedIcon || oldUserData.icon || DEFAULT_ICON_1)
-              : (myIcon || oldUserData.icon || DEFAULT_ICON_1);
+          if (uData && uData.lastActive && (Date.now() - uData.lastActive <= SEVEN_DAYS_MS)) {
+            alert(`「${targetName}」は現在他の人が使用しています。`);
+            return;
+          }
 
+          if (confirm(`「${targetName}」に変更しますか？`)) {
+            // BUG FIX: Update group memberships and creator names when changing username
             db.ref('secret_groups').once('value', (groupSnap) => {
               const groups = groupSnap.val() || {};
-              const multiUpdates = {};
+              const groupUpdates = {};
 
               Object.entries(groups).forEach(([gId, gData]) => {
                 let updated = false;
@@ -1192,32 +1190,26 @@
                 }
 
                 if (updated) {
-                  multiUpdates[`secret_groups/${gId}/members`] = newMembers;
-                  multiUpdates[`secret_groups/${gId}/creator`] = newCreator;
+                  groupUpdates[`secret_groups/${gId}/members`] = newMembers;
+                  groupUpdates[`secret_groups/${gId}/creator`] = newCreator;
                 }
               });
 
-              multiUpdates[`secret_users/${currentActiveName}`] = null;
-              multiUpdates[`secret_users/${targetName}`] = {
-                name: targetName,
-                icon: preservedIcon,
-                lastActive: firebase.database.ServerValue.TIMESTAMP
-              };
-
-              db.ref().update(multiUpdates).then(() => {
+              db.ref().update(groupUpdates).then(() => {
+                db.ref('secret_users/' + currentActiveName).remove();
                 if (impersonatedName) {
                   impersonatedName = targetName;
-                  impersonatedIcon = preservedIcon;
                 } else {
                   myName = targetName;
                   localStorage.setItem(STORAGE_NAME_KEY, myName);
                 }
+                if (window.presenceInterval) clearInterval(window.presenceInterval);
                 checkBanStatusAndInit();
                 alert(`名前を変更しました！`);
               });
             });
-          });
-        }
+          }
+        });
       });
     }
 
@@ -1498,7 +1490,6 @@
       const container = document.getElementById('menuGroupListContainer');
       const activeSender = impersonatedName || myName;
 
-      db.ref('secret_groups').off();
       db.ref('secret_groups').on('value', (groupSnap) => {
         const groups = groupSnap.val() || {};
         container.innerHTML = '';
@@ -1734,7 +1725,6 @@
       document.getElementById('dmUserListLayout').style.display = 'none';
       document.getElementById('dmChatRoomLayout').style.display = 'flex';
 
-      db.ref(`secret_groups/${groupId}`).off();
       db.ref(`secret_groups/${groupId}`).on('value', (snap) => {
         const gData = snap.val();
         if (gData && gData.members) {
@@ -1773,7 +1763,6 @@
         syncPath = 'secret_group_messages/' + currentGroupId;
       }
 
-      db.ref(syncPath).off();
       db.ref(syncPath).limitToLast(50).on('value', (snapshot) => {
         const oldScrollTop = container.scrollTop;
         const oldScrollHeight = container.scrollHeight;
