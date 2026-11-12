@@ -786,6 +786,7 @@
     let currentGroupData = null;
 
     let canSend = true;
+    let lastMsgCount = {};
 
     window.addEventListener('keydown', (e) => {
       if (e.key === 'Escape') triggerPanic();
@@ -809,7 +810,6 @@
     window.onload = function() {
       applySavedScreenMode();
       updateAvatarDisplays();
-      cleanupInactiveUsers();
       checkBanStatusAndInit();
     };
 
@@ -840,6 +840,7 @@
         return;
       }
 
+      db.ref('secret_bans/' + myName).off();
       db.ref('secret_bans/' + myName).on('value', (snap) => {
         if (snap.val() === true) {
           document.getElementById('banScreen').style.display = 'flex';
@@ -849,19 +850,6 @@
           document.getElementById('nameModal').style.display = 'none';
           initApp();
         }
-      });
-    }
-
-    function cleanupInactiveUsers() {
-      const SEVEN_DAYS_MS = 7 * 24 * 60 * 60 * 1000;
-      const now = Date.now();
-      db.ref('secret_users').once('value', (snap) => {
-        const users = snap.val() || {};
-        Object.entries(users).forEach(([userName, uData]) => {
-          if (!userName || userName === "undefined" || (uData.lastActive && (now - uData.lastActive > SEVEN_DAYS_MS))) {
-            db.ref('secret_users/' + userName).remove();
-          }
-        });
       });
     }
 
@@ -884,16 +872,15 @@
 
         db.ref('secret_users/' + targetName).once('value', (snap) => {
           const uData = snap.val();
-          const SEVEN_DAYS_MS = 7 * 24 * 60 * 60 * 1000;
-          
-          if (uData && uData.lastActive && (Date.now() - uData.lastActive <= SEVEN_DAYS_MS)) {
-            alert(`「${targetName}」は現在他の人が使用しています。`);
-            return;
-          }
-
-          if (confirm(`「${targetName}」は使用可能です！参加しますか？`)) {
+          if (confirm(`「${targetName}」で通信網に参加しますか？`)) {
             myName = targetName;
             localStorage.setItem(STORAGE_NAME_KEY, myName);
+            if (!myIcon && uData && uData.icon) {
+              myIcon = uData.icon;
+            } else if (!myIcon) {
+              myIcon = DEFAULT_ICON_1;
+            }
+            localStorage.setItem(STORAGE_ICON_KEY, myIcon);
             document.getElementById('nameModal').style.display = 'none';
             checkBanStatusAndInit();
           }
@@ -901,53 +888,28 @@
       });
     }
 
-    // --- 自分のアカウントを完全に削除する機能 ---
-    function deleteMyAccount() {
-      const activeName = impersonatedName || myName;
-      if (!confirm(`本当にアカウント「${activeName}」を完全に削除しますか？\n（この操作は元に戻せません）`)) return;
-
-      db.ref('secret_users/' + activeName).remove().then(() => {
-        localStorage.removeItem(STORAGE_NAME_KEY);
-        myName = "";
-        impersonatedName = null;
-        impersonatedIcon = null;
-        if (window.presenceInterval) clearInterval(window.presenceInterval);
-
-        document.getElementById('groupSettingsModal').style.display = 'none';
-        document.getElementById('msgActionModal').style.display = 'none';
-        document.getElementById('banScreen').style.display = 'none';
-        document.getElementById('nameModal').style.display = 'flex';
-        document.getElementById('initialNameInput').value = '';
-
-        alert("アカウントを削除しました。初期登録画面に戻ります。");
-      });
-    }
-
-    function quitAdminMode() {
-      isAdmin = false;
-      impersonatedName = null;
-      impersonatedIcon = null;
-      document.getElementById('adminHeaderBadge').style.display = 'none';
-      document.getElementById('adminPanelCard').style.display = 'none';
-      initApp();
-      alert("管理者モードを終了しました。");
-    }
-
     function initApp() {
+      const activeName = impersonatedName || myName;
       const displayName = impersonatedName ? `🛡️[憑依: ${impersonatedName}]` : myName;
       document.getElementById('headerUserTag').innerText = `道下ID: ${displayName}`;
-      document.getElementById('settingNameInput').value = impersonatedName || myName;
-      
+      document.getElementById('settingNameInput').value = activeName;
+
+      if (isAdmin) {
+        document.getElementById('adminHeaderBadge').style.display = 'inline-block';
+        document.getElementById('adminPanelCard').style.display = 'flex';
+        initAdminPanel();
+      } else {
+        document.getElementById('adminHeaderBadge').style.display = 'none';
+        document.getElementById('adminPanelCard').style.display = 'none';
+      }
+
       if (impersonatedName) {
         document.getElementById('unimpersonateBtn').style.display = 'inline-block';
       } else {
         document.getElementById('unimpersonateBtn').style.display = 'none';
       }
 
-      if (isAdmin) {
-        document.getElementById('adminHeaderBadge').style.display = 'inline-block';
-        document.getElementById('adminPanelCard').style.display = 'flex';
-      }
+      updateAvatarDisplays();
       registerUserPresence();
       initUserListSync();
       initMenuGroupListSync();
@@ -955,13 +917,36 @@
 
     function registerUserPresence() {
       const activeName = impersonatedName || myName;
-      const activeIconToUse = impersonatedName ? impersonatedIcon : myIcon;
       if (!activeName || activeName === "undefined") return;
+
       const userRef = db.ref('secret_users/' + activeName);
-      userRef.set({ name: activeName, icon: activeIconToUse, lastActive: firebase.database.ServerValue.TIMESTAMP });
+
+      userRef.once('value', (snap) => {
+        const currentData = snap.val() || {};
+        const iconToSave = impersonatedName
+          ? (impersonatedIcon || currentData.icon || DEFAULT_ICON_1)
+          : (myIcon || currentData.icon || DEFAULT_ICON_1);
+
+        if (!impersonatedName && currentData.icon && myIcon === DEFAULT_ICON_1 && currentData.icon !== DEFAULT_ICON_1) {
+          myIcon = currentData.icon;
+          localStorage.setItem(STORAGE_ICON_KEY, myIcon);
+          updateAvatarDisplays();
+        }
+
+        userRef.update({
+          name: activeName,
+          icon: iconToSave,
+          lastActive: firebase.database.ServerValue.TIMESTAMP
+        });
+      });
+
       if (window.presenceInterval) clearInterval(window.presenceInterval);
       window.presenceInterval = setInterval(() => {
-        userRef.update({ lastActive: firebase.database.ServerValue.TIMESTAMP, icon: (impersonatedName ? impersonatedIcon : myIcon) });
+        const curName = impersonatedName || myName;
+        if (!curName) return;
+        db.ref('secret_users/' + curName).update({
+          lastActive: firebase.database.ServerValue.TIMESTAMP
+        });
       }, 10000);
     }
 
@@ -992,6 +977,7 @@
       const userContainer = document.getElementById('adminUserListContainer');
       const banContainer = document.getElementById('adminBanListContainer');
 
+      db.ref('secret_users').off();
       db.ref('secret_users').on('value', (snap) => {
         const users = snap.val() || {};
         userContainer.innerHTML = '';
@@ -1011,13 +997,14 @@
         });
       });
 
+      db.ref('secret_bans').off();
       db.ref('secret_bans').on('value', (snap) => {
         const bans = snap.val() || {};
         banContainer.innerHTML = '';
         const bannedNames = Object.keys(bans).filter(name => bans[name] === true);
 
         if (bannedNames.length === 0) {
-          banContainer.innerHTML = '<div style="font-size:11px; color:#64748b; font-weight:700; padding:4px;">現在BANされているユーザーはいません</div>';
+          banContainer.innerHTML = '<div style="font-size:11px; color:#64748b; font-weight:700; padding:4px;">現在BANされているユーザーはありません</div>';
           return;
         }
 
@@ -1039,7 +1026,7 @@
       impersonatedIcon = targetIcon || DEFAULT_ICON_1;
       updateAvatarDisplays();
       initApp();
-      alert(`${targetName} に憑依しました！これより完全になりきって操作できます。`);
+      alert(`${targetName} に憑依しました！`);
       switchTab('menu');
     }
 
@@ -1048,7 +1035,17 @@
       impersonatedIcon = null;
       updateAvatarDisplays();
       initApp();
-      alert("憑依を解除し、元の自分のアカウントに戻りました。");
+      alert("憑依を解除しました。");
+    }
+
+    function quitAdminMode() {
+      isAdmin = false;
+      impersonatedName = null;
+      impersonatedIcon = null;
+      document.getElementById('adminHeaderBadge').style.display = 'none';
+      document.getElementById('adminPanelCard').style.display = 'none';
+      initApp();
+      alert("管理者モードを終了しました。");
     }
 
     function deleteAccount(targetName) {
@@ -1058,22 +1055,41 @@
     }
 
     function banUser(targetName) {
-      if (!confirm(`「${targetName}」をBANリストに追加しますか？`)) return;
+      if (!confirm(`「${targetName}」をBANしますか？`)) return;
       db.ref('secret_bans/' + targetName).set(true);
       db.ref('secret_users/' + targetName).remove();
       alert(`「${targetName}」をBANしました。`);
     }
 
     function unbanUser(targetName) {
-      if (!confirm(`「${targetName}」のBANを解除して通信網に復帰させますか？`)) return;
+      if (!confirm(`「${targetName}」のBANを解除しますか？`)) return;
       db.ref('secret_bans/' + targetName).remove();
       alert(`「${targetName}」のBANを解除しました！`);
     }
 
-    function adminBurnMessage(path, msgKey) {
-      if (!isAdmin) return;
-      if (!confirm("管理者権限でこのメッセージを炎上消去しますか？")) return;
-      db.ref(`${path}/${msgKey}`).remove();
+    function deleteMyAccount() {
+      const activeName = impersonatedName || myName;
+      if (!confirm(`本当にアカウント「${activeName}」を完全に削除しますか？`)) return;
+
+      db.ref('secret_users/' + activeName).remove().then(() => {
+        if (!impersonatedName) {
+          localStorage.removeItem(STORAGE_NAME_KEY);
+          localStorage.removeItem(STORAGE_ICON_KEY);
+          myName = "";
+          myIcon = DEFAULT_ICON_1;
+        }
+        impersonatedName = null;
+        impersonatedIcon = null;
+        if (window.presenceInterval) clearInterval(window.presenceInterval);
+
+        document.getElementById('groupSettingsModal').style.display = 'none';
+        document.getElementById('msgActionModal').style.display = 'none';
+        document.getElementById('banScreen').style.display = 'none';
+        document.getElementById('nameModal').style.display = 'flex';
+        document.getElementById('initialNameInput').value = '';
+
+        alert("アカウントを削除しました。");
+      });
     }
 
     function handleAvatarFileSelect(input) {
@@ -1099,9 +1115,9 @@
           } else {
             myIcon = newIconData;
             localStorage.setItem(STORAGE_ICON_KEY, myIcon);
+            db.ref('secret_users/' + myName).update({ icon: myIcon });
           }
           updateAvatarDisplays();
-          registerUserPresence();
           alert("アイコンを変更しました！");
         }
         img.src = e.target.result;
@@ -1118,9 +1134,9 @@
       } else {
         myIcon = defaultIcon;
         localStorage.setItem(STORAGE_ICON_KEY, myIcon);
+        db.ref('secret_users/' + myName).update({ icon: myIcon });
       }
       updateAvatarDisplays();
-      registerUserPresence();
       alert("初期アイコンに戻しました！");
     }
 
@@ -1148,28 +1164,60 @@
           return;
         }
 
-        db.ref('secret_users/' + targetName).once('value', (snap) => {
-          const uData = snap.val();
-          const SEVEN_DAYS_MS = 7 * 24 * 60 * 60 * 1000;
+        if (confirm(`「${targetName}」に変更しますか？`)) {
+          if (window.presenceInterval) clearInterval(window.presenceInterval);
 
-          if (uData && uData.lastActive && (Date.now() - uData.lastActive <= SEVEN_DAYS_MS)) {
-            alert(`「${targetName}」は現在他の人が使用しています。`);
-            return;
-          }
+          db.ref('secret_users/' + currentActiveName).once('value', (oldUserSnap) => {
+            const oldUserData = oldUserSnap.val() || {};
+            const preservedIcon = impersonatedName
+              ? (impersonatedIcon || oldUserData.icon || DEFAULT_ICON_1)
+              : (myIcon || oldUserData.icon || DEFAULT_ICON_1);
 
-          if (confirm(`「${targetName}」に変更しますか？`)) {
-            db.ref('secret_users/' + currentActiveName).remove();
-            if (impersonatedName) {
-              impersonatedName = targetName;
-            } else {
-              myName = targetName;
-              localStorage.setItem(STORAGE_NAME_KEY, myName);
-            }
-            if (window.presenceInterval) clearInterval(window.presenceInterval);
-            checkBanStatusAndInit();
-            alert(`名前を変更しました！`);
-          }
-        });
+            db.ref('secret_groups').once('value', (groupSnap) => {
+              const groups = groupSnap.val() || {};
+              const multiUpdates = {};
+
+              Object.entries(groups).forEach(([gId, gData]) => {
+                let updated = false;
+                let newMembers = [...(gData.members || [])];
+                let newCreator = gData.creator;
+
+                if (newMembers.includes(currentActiveName)) {
+                  newMembers = newMembers.map(m => m === currentActiveName ? targetName : m);
+                  updated = true;
+                }
+                if (gData.creator === currentActiveName) {
+                  newCreator = targetName;
+                  updated = true;
+                }
+
+                if (updated) {
+                  multiUpdates[`secret_groups/${gId}/members`] = newMembers;
+                  multiUpdates[`secret_groups/${gId}/creator`] = newCreator;
+                }
+              });
+
+              multiUpdates[`secret_users/${currentActiveName}`] = null;
+              multiUpdates[`secret_users/${targetName}`] = {
+                name: targetName,
+                icon: preservedIcon,
+                lastActive: firebase.database.ServerValue.TIMESTAMP
+              };
+
+              db.ref().update(multiUpdates).then(() => {
+                if (impersonatedName) {
+                  impersonatedName = targetName;
+                  impersonatedIcon = preservedIcon;
+                } else {
+                  myName = targetName;
+                  localStorage.setItem(STORAGE_NAME_KEY, myName);
+                }
+                checkBanStatusAndInit();
+                alert(`名前を変更しました！`);
+              });
+            });
+          });
+        }
       });
     }
 
@@ -1450,6 +1498,7 @@
       const container = document.getElementById('menuGroupListContainer');
       const activeSender = impersonatedName || myName;
 
+      db.ref('secret_groups').off();
       db.ref('secret_groups').on('value', (groupSnap) => {
         const groups = groupSnap.val() || {};
         container.innerHTML = '';
@@ -1467,7 +1516,7 @@
               <div style="width:32px; height:32px; border-radius:50%; background:#0284c7; color:#fff; display:flex; align-items:center; justify-content:center; font-weight:900; font-size:14px;">👥</div>
               <span>${gData.name} <span style="font-size:11px; color:#64748b; font-weight:700;">(${memberCount}人)</span></span>
             </div>
-            <span style="font-size: 11px; color: #0284c7;">チャップを開く →</span>
+            <span style="font-size: 11px; color: #0284c7;">チャットを開く →</span>
           `;
           div.onclick = () => {
             switchTab('dm');
@@ -1592,6 +1641,12 @@
       }
     }
 
+    function adminBurnMessage(path, msgKey) {
+      if (!isAdmin) return;
+      if (!confirm("管理者権限でこのメッセージを炎上消去しますか？")) return;
+      db.ref(`${path}/${msgKey}`).remove();
+    }
+
     function initUserListSync() {
       const container = document.getElementById('onlineUserListContainer');
       const tabUnreadDot = document.getElementById('tabUnreadDot');
@@ -1679,6 +1734,7 @@
       document.getElementById('dmUserListLayout').style.display = 'none';
       document.getElementById('dmChatRoomLayout').style.display = 'flex';
 
+      db.ref(`secret_groups/${groupId}`).off();
       db.ref(`secret_groups/${groupId}`).on('value', (snap) => {
         const gData = snap.val();
         if (gData && gData.members) {
@@ -1701,7 +1757,6 @@
       document.getElementById('dmUserListLayout').style.display = 'flex';
     }
 
-    let lastMsgCount = {};
     function initChatSync() {
       const container = document.getElementById('dmMessagesContainer');
       const activeSender = impersonatedName || myName;
@@ -1718,6 +1773,7 @@
         syncPath = 'secret_group_messages/' + currentGroupId;
       }
 
+      db.ref(syncPath).off();
       db.ref(syncPath).limitToLast(50).on('value', (snapshot) => {
         const oldScrollTop = container.scrollTop;
         const oldScrollHeight = container.scrollHeight;
