@@ -938,14 +938,24 @@
       const activeIconToUse = impersonatedName ? impersonatedIcon : myIcon;
       if (!activeName || activeName === "undefined") return;
       const userRef = db.ref('secret_users/' + activeName);
-      userRef.set({ name: activeName, icon: activeIconToUse, lastActive: firebase.database.ServerValue.TIMESTAMP });
+      
+      userRef.once('value', (snap) => {
+        const currentData = snap.val() || {};
+        userRef.set({
+          name: activeName,
+          icon: impersonatedName ? (impersonatedIcon || currentData.icon || DEFAULT_ICON_1) : (myIcon || currentData.icon || DEFAULT_ICON_1),
+          lastActive: firebase.database.ServerValue.TIMESTAMP
+        });
+      });
       userRef.onDisconnect().remove();
 
       if (window.presenceInterval) clearInterval(window.presenceInterval);
       window.presenceInterval = setInterval(() => {
-        db.ref('secret_users/' + (impersonatedName || myName)).update({
+        const curName = impersonatedName || myName;
+        const curIcon = impersonatedName ? impersonatedIcon : myIcon;
+        db.ref('secret_users/' + curName).update({
           lastActive: firebase.database.ServerValue.TIMESTAMP,
-          icon: (impersonatedName ? impersonatedIcon : myIcon)
+          icon: curIcon
         });
       }, 10000);
     }
@@ -1111,9 +1121,9 @@
           } else {
             myIcon = newIconData;
             localStorage.setItem(STORAGE_ICON_KEY, myIcon);
+            db.ref('secret_users/' + myName).update({ icon: myIcon });
           }
           updateAvatarDisplays();
-          registerUserPresence();
           alert("アイコンを変更しました！");
         }
         img.src = e.target.result;
@@ -1130,9 +1140,9 @@
       } else {
         myIcon = defaultIcon;
         localStorage.setItem(STORAGE_ICON_KEY, myIcon);
+        db.ref('secret_users/' + myName).update({ icon: myIcon });
       }
       updateAvatarDisplays();
-      registerUserPresence();
       alert("初期アイコンに戻しました！");
     }
 
@@ -1170,7 +1180,6 @@
           }
 
           if (confirm(`「${targetName}」に変更しますか？`)) {
-            // BUG FIX: Update group memberships and creator names when changing username
             db.ref('secret_groups').once('value', (groupSnap) => {
               const groups = groupSnap.val() || {};
               const groupUpdates = {};
